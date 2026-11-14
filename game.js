@@ -41,6 +41,13 @@ function questDay(){return Math.max(1,Math.floor((new Date().setHours(0,0,0,0)-E
 function weekId(){const d=new Date();const day=(d.getDay()+6)%7;const mon=new Date(d);mon.setDate(d.getDate()-day);return dayKey(mon)+""}
 function daysBetween(a,b){const pa=new Date(Math.floor(a/10000),Math.floor(a/100)%100-1,a%100),pb=new Date(Math.floor(b/10000),Math.floor(b/100)%100-1,b%100);return Math.round((pb-pa)/86400000)}
 
+function buildChapter(s,seed){
+  const rnd=mulberry(seed);let pool=BANK.filter(q=>q.s===s);if(pool.length<5)pool=BANK.filter(q=>q.s<=TAUGHT);
+  const picked=[];const used=new Set();
+  for(let i=0;i<5&&picked.length<pool.length;i++){const w=[];pool.forEach(q=>{if(used.has(q.id))return;const m=1+(S.missed[q.id]||0)*2;for(let k=0;k<m;k++)w.push(q)});const q=w[Math.floor(rnd()*w.length)];used.add(q.id);picked.push(q)}
+  let bosses=BOSSES.filter(b=>b.s===s);if(!bosses.length)bosses=BOSSES.filter(b=>b.s<=TAUGHT);
+  return {qs:picked,boss:bosses[Math.floor(rnd()*bosses.length)],seed};
+}
 function buildQuest(seed,n){
   const rnd=mulberry(seed);const pool=BANK.filter(q=>q.s<=TAUGHT);
   const sessions=[...new Set(pool.map(q=>q.s))];const picked=[];const used=new Set();
@@ -159,7 +166,7 @@ function loop(){
   for(let i=0;i<fogN;i++){c.fillStyle=`rgba(123,220,90,${.05+.03*i})`;const fx=(Scene.t*(0.3+i*0.2))%(W+120)-60;c.fillRect(fx,H-40-(i>3?i*8:0)+i*5,120,10)}
   // hero
   drawMap(c,HERO,30,H-30-14*4,4);
-  if(S.hat&&HATMAPS[S.hat]){const hm=HATMAPS[S.hat];drawMap(c,hm,30+(10-hm[0].length)*2,H-30-14*4-hm.length*4+(S.hat==="halo"?-4:4),4)}
+  if(S.hat&&HATMAPS[S.hat]){const hm=HATMAPS[S.hat];drawMap(c,hm,30+(10-hm[0].length)*2,H-30-14*4-hm.length*4+(S.hat==="halo"?-10:4),4)}
   // tome
   let map=TOME_IDLE;let bob=Math.sin(Scene.t/14)*4;const pal=Scene.chapter?Object.assign({},PAL,Scene.chapter.pal):PAL;
   if(Scene.dead)map=TOME_DEAD,bob=0;
@@ -234,7 +241,7 @@ function home(){
     <div><div class="n rk">${rankFor(S.totalDmg)}</div><div class="l">Rank</div></div>
   </div>
   ${S.title?`<p class="ptitle">${S.hat?HATS[S.hat]+" ":""}${esc(S.name||"You")}, <em>${esc(S.title)}</em></p>`:""}
-  <button class="big" id="startDaily"><span class="lbl">${played?"REPLAY QUEST #"+dn:"DAILY QUEST #"+dn}</span><span class="sub">5 questions + chapter boss • Sessions 1–${TAUGHT}</span></button>
+  <button class="big pulse" id="startDaily"><span class="lbl">${played?"REPLAY QUEST #"+dn:"\u25b6 DAILY QUEST #"+dn}</span><span class="sub">5 questions + chapter boss • Sessions 1–${TAUGHT}</span></button>
   <button class="ghost" id="weeklyBtn"><span class="lbl">WEEKLY BOSS</span><span class="sub">Team HP ${Math.max(0,WEEK_MAX-wt.total).toLocaleString()} / ${WEEK_MAX.toLocaleString()} • ${wt.rows.length} fighter${wt.rows.length===1?"":"s"}</span></button>
   <div class="two"><button class="ghost center" id="mapBtn"><span class="lbl">CAMPUS MAP</span></button><button class="ghost center" id="rivalBtn"><span class="lbl">RIVAL</span></button></div>
   <button class="ghost center" id="storyBtn"><span class="lbl">\ud83d\udcd6 THE STORY${load("storySeen",false)?"":" \u2022 NEW"}</span></button>
@@ -242,18 +249,20 @@ function home(){
   <div class="field"><label class="eyebrow" for="pname">Your name (shows on the team roster)</label><input type="text" id="pname" value="${esc(S.name)}" placeholder="First name" maxlength="20"></div>
   <div class="field"><label class="eyebrow" for="team">Team code (prefixes share cards)</label><input type="text" id="team" value="${esc(S.team)}" placeholder="HHS-ECON" maxlength="16"></div>
   <p class="footer">Questions from DemiDec Section Exams 1–3 and the session case studies.</p>`;
-  mountScene(null);
+  mountScene(null);attract();
   $("#startDaily").onclick=()=>{SFX.click();start({practice:false})};$("#startPractice").onclick=()=>{SFX.click();start({practice:true})};
   $("#weeklyBtn").onclick=()=>{SFX.click();weekly()};$("#storyBtn").onclick=()=>{SFX.click();story()};$("#mapBtn").onclick=()=>{SFX.click();campus()};$("#rivalBtn").onclick=()=>{SFX.click();rival()};$("#bagBtn").onclick=()=>{SFX.click();bag()};
   $("#pname").oninput=e=>{S.name=e.target.value.trim();save("name",S.name)};
   $("#team").oninput=e=>{S.team=e.target.value.trim();save("team",S.team)};
 }
 
-function start(o){
+let attractT=null;function attract(){clearInterval(attractT);attractT=setInterval(()=>{if(!G&&Scene.cv&&Scene.cv.isConnected){sceneSet("cast");setTimeout(()=>{if(!G)sceneSet("idle")},1200)}else clearInterval(attractT)},5000)}
+function start(o){clearInterval(attractT);
   const seed=o.seed||(o.practice?Math.floor(Math.random()*1e9):o.weekly?parseInt(weekId())+7:dayKey());
   const n=o.weekly?12:5;
   TOME_MAX=o.weekly?420:200;
-  G=Object.assign({},buildQuest(seed,n),{n,i:0,tome:TOME_MAX,hearts:3,combo:0,best:0,dmg:0,log:[],t0:Date.now(),qStart:0,done:false,practice:!!o.practice,weekly:!!o.weekly,rival:o.rival||null,usedSecond:false,crits:0});
+  const quest=o.session?buildChapter(o.session,seed):buildQuest(seed,n);
+  G=Object.assign({},quest,{n,i:0,tome:TOME_MAX,hearts:3,session:o.session||null,combo:0,best:0,dmg:0,log:[],t0:Date.now(),qStart:0,done:false,practice:!!o.practice,weekly:!!o.weekly,rival:o.rival||null,usedSecond:false,crits:0});
   G.chapter=CHAPTERS[G.boss.s]||CHAPTERS[1];
   Scene.dead=false;fight();
 }
@@ -272,7 +281,9 @@ function fight(){
   <div class="card"><p class="q">${esc(q.q)}</p><div id="answer"></div><div id="why"></div></div>
   <div class="two">${S.items.skip>0&&!isBoss?`<button class="ghost center item" id="useSkip"><span class="lbl">SKIP (${S.items.skip})</span></button>`:""}${S.items.second>0&&G.hearts<3&&!G.usedSecond?`<button class="ghost center item" id="useSecond"><span class="lbl">2ND CHANCE (${S.items.second})</span></button>`:""}</div>
   <button class="ghost center" id="quit">Flee to campus</button>`;
+  window.scrollTo({top:0});
   mountScene(isBoss?G.chapter:null);sceneSet(isBoss?"cast":"idle");
+  if(isBoss){const f=$("#fx");if(f){const e=document.createElement("div");e.className="bossIntro";e.innerHTML=`<span>${esc(G.chapter.name)}</span><small>appears</small>`;f.appendChild(e);setTimeout(()=>e.remove(),2200);SFX.combo()}}
   $("#quit").onclick=home;
   const sk=$("#useSkip");if(sk)sk.onclick=()=>{S.items.skip--;save("items",S.items);G.log.push("⬜");G.i++;SFX.click();toast("Skipped");G.i>G.n?result():fight()};
   const sc=$("#useSecond");if(sc)sc.onclick=()=>{S.items.second--;save("items",S.items);G.hearts++;G.usedSecond=true;SFX.loot();toast("Heart restored");sc.remove();document.querySelector(".hearts").outerHTML=heartsHTML(G.hearts)};
@@ -292,7 +303,7 @@ function answer(v){
   const isBoss=G.i===G.n,q=isBoss?G.boss:G.qs[G.i],secs=(Date.now()-G.qStart)/1000;
   let ok;if(v===null)ok=false;else if(q.type==="num")ok=Math.abs(v-q.ans)<=q.tol+1e-9;else ok=v===q.a;
   const ans=$("#answer");
-  ans.querySelectorAll("button.opt").forEach(b=>{b.disabled=true;if(+b.dataset.k===q.a)b.classList.add("right");else if(v!==null&&+b.dataset.k===v&&!ok)b.classList.add("wrong")});
+  ans.querySelectorAll("button.opt").forEach(b=>{b.disabled=true;if(+b.dataset.k===q.a)setTimeout(()=>b.classList.add("right"),ok?0:350);else if(v!==null&&+b.dataset.k===v&&!ok)b.classList.add("wrong","shakeX");else b.classList.add("dim")});
   if(q.type==="num"){const n=$("#num");if(n){n.disabled=true;n.classList.add(ok?"good":"bad")}const g=$("#go");if(g)g.disabled=true}
   document.querySelectorAll(".item").forEach(b=>b.remove());
   let dealt=0,crit=false,taunt="";
@@ -317,6 +328,7 @@ function answer(v){
   $("#why").innerHTML=`<div class="taunt ${ok?"":"cast"}">“${esc(taunt)}”</div><div class="why ${ok?"ok":"bad"}"><b>${ok?(crit?"CRITICAL. ":isBoss?"DODGED. ":"HIT. "):v===null?"TOO SLOW. ":"MISS. "}</b>${esc(q.why)}${ok?"":" <span class='muted'>Answer: "+esc(correctTxt)+"</span>"}${q.src?"<div class='src'>"+esc(q.src)+"</div>":""}</div>
   ${(!isBoss&&G.tome<=1)?`<div class="taunt">The Tome is at 1 HP and clinging to its spine. Only the chapter boss can finish it.</div>`:""}<button class="big center" id="next"><span class="lbl">${G.hearts<=0||G.tome<=0||G.i>=G.n?"SEE RESULT":"NEXT ▶"}</span></button>`;
   $("#next").onclick=()=>{G.i++;if(G.hearts<=0||G.tome<=0||G.i>G.n)result();else fight()};
+  setTimeout(()=>{const w=$("#why");if(w)w.scrollIntoView({behavior:"smooth",block:"nearest"})},200);
 }
 function rollLoot(){if(Math.random()<.35)return null;const l=LOOT[Math.floor(Math.random()*LOOT.length)];
   if(l.k==="title"){if(S.titles.includes(l.v))return {k:"item",v:"skip"};S.titles.push(l.v);S.title=l.v}
@@ -342,7 +354,7 @@ function result(){
   const card=`${S.team?S.team+" • ":""}${S.hat?HATS[S.hat]+" ":""}Econ Monster ${G.weekly?"Weekly":G.practice?"Practice":"Day "+dn} — ${won?G.chapter.name+" slain":"Tome HP "+G.tome} in ${mm}:${ss} ⚔️${G.log.join("")} — ${G.dmg} dmg${G.crits?" • "+G.crits+" crit":""} • x${G.best} combo — 🔥${S.streak}${G.rival?"\nvs "+G.rival.name+": "+G.rival.dmg+" dmg in "+Math.floor(G.rival.secs/60)+":"+String(G.rival.secs%60).padStart(2,"0")+" — "+(G.dmg>G.rival.dmg?"I WIN":G.dmg<G.rival.dmg?"THEY WIN":"TIE"):"\nRival me: "+code}`;
   const correct=G.log.filter(x=>x==="🟩").length,total=G.n+1;
   app.innerHTML=`
-  <header class="title"><p class="eyebrow">${G.weekly?"Weekly boss":G.practice?"Practice fight":G.rival?"Rival fight":"Daily Quest #"+dn}</p><h1 class="${won?"victory":"lose"}">${won?esc(G.chapter.name).toUpperCase()+"<br>SLAIN":G.hearts<=0?"DEVOURED":"TOME ESCAPED"}</h1></header>
+  <header class="title"><p class="eyebrow">${G.weekly?"Weekly boss":G.session?CHAPTERS[G.session].loc:G.practice?"Practice fight":G.rival?"Rival fight":"Daily Quest #"+dn}</p><h1 class="${won?"victory":"lose"}">${won?esc(G.chapter.name).toUpperCase()+"<br>SLAIN":G.hearts<=0?"DEVOURED":"TOME ESCAPED"}</h1></header>
   ${sceneHTML()}
   ${streakMsg?`<div class="taunt"><b>${esc(streakMsg)}</b></div>`:""}
   ${loot?`<div class="loot"><span class="eyebrow">LOOT DROP</span><p>${loot.k==="hat"?HATS[loot.v]+" "+loot.v+" hat (equipped)":loot.k==="title"?"Title: <em>"+esc(loot.v)+"</em>":ITEMS[loot.v].n+" — "+ITEMS[loot.v].d}</p></div>`:""}
@@ -400,17 +412,34 @@ function weekly(){
 
 // ---------- CAMPUS MAP ----------
 function campus(){
-  app.innerHTML=`<header class="title"><p class="eyebrow">Beat a chapter boss 3 times to free its location</p><h1>Highland High</h1></header>
-  <div class="scene map"><canvas id="map" width="512" height="448"></canvas><div class="scan"></div></div>
-  <div class="win"><div class="locs">${Object.entries(CHAPTERS).map(([s,c])=>`<div class="loc ${freed(+s)?"free":""}"><span class="lk">${freed(+s)?"\u2605":"\u2620"}</span><span class="ln">${esc(c.loc)}</span><span class="lb">${esc(c.name)} \u2022 ${Math.min(3,sessionWins(+s))}/3</span></div>`).join("")}</div></div>
+  app.innerHTML=`<header class="title"><p class="eyebrow">Tap a spot to walk there. Tap again to fight.</p><h1>Highland High</h1><div class="tartan" aria-hidden="true"></div></header>
+  <div class="scene map"><canvas id="map" width="512" height="448"></canvas><div class="scan"></div><div class="mapHud" id="mapHud"></div></div>
+  <div class="win" id="spotInfo"><p class="muted">Walk the Scot to a location.</p></div>
   <button class="ghost center" id="home"><span class="lbl">BACK</span></button>`;
   $("#home").onclick=home;
   const cv=$("#map"),c=cv.getContext("2d");c.imageSmoothingEnabled=false;
   const fs=new Set(Object.keys(CHAPTERS).map(Number).filter(freed));
-  (function draw(){if(!cv.isConnected)return;c.setTransform(2,0,0,2,0,0);drawCampus(c,fs,performance.now());
+  const hero=load("heroPos",{x:118,y:140});let target=null,atSpot=null,step=0;
+  const spotAt=(x,y)=>Object.entries(CAMPUS.spots).find(([s,sp])=>Math.hypot(sp.x-x,sp.y-y)<14);
+  function info(){const el=$("#spotInfo");if(!el)return;if(!atSpot){el.innerHTML="<p class='muted'>Walk the Scot to a location.</p>";return}
+    const [s,sp]=atSpot;const ch=CHAPTERS[s];const w=Math.min(3,sessionWins(+s));
+    el.innerHTML=`<div class="row"><div><p class="eyebrow">${esc(sp.label)}</p><p><b>${esc(ch.name)}</b> • ${esc(SESSIONS[s])}</p><p class="muted small">${fs.has(+s)?"Freed. Fight again for loot.":w+"/3 wins to free"}</p></div><button class="big center" id="fightHere" style="width:auto"><span class="lbl">FIGHT</span></button></div>`;
+    $("#fightHere").onclick=()=>{SFX.click();start({practice:true,session:+s})};}
+  cv.addEventListener("click",e=>{const r=cv.getBoundingClientRect();const x=(e.clientX-r.left)/r.width*256,y=(e.clientY-r.top)/r.height*224;const sp=spotAt(x,y);
+    if(sp&&atSpot&&sp[0]===atSpot[0]){SFX.click();start({practice:true,session:+sp[0]});return}
+    target=sp?{x:sp[1].x,y:sp[1].y+4}:{x:Math.max(8,Math.min(248,x)),y:Math.max(14,Math.min(208,y))};SFX.click()});
+  (function draw(){if(!cv.isConnected)return;
+    if(target){const dx=target.x-hero.x,dy=target.y-hero.y,d=Math.hypot(dx,dy);if(d<1.5){hero.x=target.x;hero.y=target.y;target=null;save("heroPos",hero);const sp=spotAt(hero.x,hero.y-4);if(sp&&(!atSpot||sp[0]!==atSpot[0])){atSpot=sp;SFX.hit();info()}else if(!sp&&atSpot){atSpot=null;info()}}else{hero.x+=dx/d*1.6;hero.y+=dy/d*1.6;step++}}
+    c.setTransform(2,0,0,2,0,0);drawCampus(c,fs,performance.now());
+    // hero (facing by direction, 2-frame walk)
+    const bobY=target&&Math.floor(step/6)%2?-1:0;const hx=hero.x-7,hy=hero.y-20+bobY;
+    px(c,hx+2,hero.y-1,11,2,CP.shadow);drawMap(c,HERO,hx,hy,1.5);
+    if(S.hat&&HATMAPS[S.hat]){const hm=HATMAPS[S.hat];drawMap(c,hm,hx+(10-hm[0].length)*.75,hy-hm.length*1.5+(S.hat==="halo"?-3:1.5),1.5)}
+    if(target){c.fillStyle="rgba(255,211,107,.8)";c.fillRect(target.x-2,target.y-2,4,4)}
     c.setTransform(1,0,0,1,0,0);c.font="8px 'Press Start 2P',monospace";c.textAlign="center";
-    Object.entries(CAMPUS.spots).forEach(([s,sp])=>{const lab=sp.label.toUpperCase();const w=c.measureText(lab).width+8;c.fillStyle="rgba(0,0,0,.6)";c.fillRect(sp.x*2-w/2,sp.y*2+6,w,12);c.fillStyle=fs.has(+s)?"#7bdc5a":"#fff";c.fillText(lab,sp.x*2,sp.y*2+15)});
+    Object.entries(CAMPUS.spots).forEach(([s,sp])=>{const lab=sp.label.toUpperCase();const w=c.measureText(lab).width+8;c.fillStyle="rgba(0,0,0,.6)";c.fillRect(sp.x*2-w/2,sp.y*2+6,w,12);c.fillStyle=fs.has(+s)?"#9fd8aa":"#fff";c.fillText(lab,sp.x*2,sp.y*2+15)});
     requestAnimationFrame(draw)})();
+  const sp0=spotAt(hero.x,hero.y-4);if(sp0){atSpot=sp0;info()}
 }
 // ---------- RIVAL ----------
 function rival(){

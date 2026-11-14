@@ -142,20 +142,20 @@ const HEROES={
 "..ss..ss..",
 ".kkk..kkk."]},
  scottie:{name:"Scottie",icon:"🐕",map:[
-"..........",
-"kk........",
-"kek.......",
-"keek......",
-"keeekkkkk.",
-"kweeeeeeek",
-"keeeeeeeek",
-"keeeeeeeek",
-".kjyjyjyk.",
-"..keeeeek.",
-"..kekkkek.",
-"..kek.kek.",
-"..kek.kek.",
-".kkk..kkk."]}
+"..k...k.........",
+".kek.kek........",
+".keekkeek.......",
+".kEEEEeeek......",
+".kewkeeeek......",
+".keeeeeeekkkkkk.",
+".kkeeeeekeeeeeek",
+"..keek.keeeeeeek",
+"..keek.keeeeeeek",
+"..kkk.kjyjyjyjyk",
+"......keeeeeeeek",
+"......kek.kekeek",
+"......kek.kekek.",
+"......kkk.kkkkk."]}
 };
 let HERO=HEROES[load("hero","lad")]?HEROES[load("hero","lad")].map:HEROES.lad.map;
 function setHero(k){if(!HEROES[k])return;save("hero",k);HERO=HEROES[k].map}
@@ -205,7 +205,7 @@ function loop(){
   for(let i=0;i<fogN;i++){c.fillStyle=`rgba(123,220,90,${.05+.03*i})`;const fx=(Scene.t*(0.3+i*0.2))%(W+120)-60;c.fillRect(fx,H-40-(i>3?i*8:0)+i*5,120,10)}
   // hero
   drawMap(c,HERO,30,H-30-14*4,4);
-  if(S.hat&&HATMAPS[S.hat]){const hm=HATMAPS[S.hat];const dog=heroKey()==="scottie";drawMap(c,hm,30+(dog?-8:(10-hm[0].length)*2),H-30-14*4-hm.length*4+(S.hat==="halo"?-10:4)+(dog?12:0),4)}
+  if(S.hat&&HATMAPS[S.hat]){const hm=HATMAPS[S.hat];const dog=heroKey()==="scottie";drawMap(c,hm,30+(dog?8:(10-hm[0].length)*2),H-30-14*4-hm.length*4+(S.hat==="halo"?-10:4)+(dog?4:0),4)}
   // tome
   const bm=Scene.chapterId?bossMaps(Scene.chapterId):null;
   const M=bm||{idle:TOME_IDLE,cast:TOME_CAST,blink:TOME_BLINK,hit:TOME_HIT,dead:TOME_DEAD};
@@ -422,10 +422,10 @@ function result(){
 // ---------- HERO PICKER ----------
 function pickHero(){
   app.innerHTML=`<header class="title"><p class="eyebrow">Choose your Scot</p><h1>Who faces<br>the Tome?</h1><div class="tartan" aria-hidden="true"></div></header>
-  <div class="heroes">${Object.entries(HEROES).map(([k,h])=>`<button class="ghost heroBtn ${heroKey()===k?"on":""}" data-h="${k}"><canvas width="60" height="84" data-c="${k}"></canvas><span class="lbl">${esc(h.name).toUpperCase()}</span></button>`).join("")}</div>
+  <div class="heroes">${Object.entries(HEROES).map(([k,h])=>`<button class="ghost heroBtn ${heroKey()===k?"on":""}" data-h="${k}"><canvas width="96" height="84" data-c="${k}"></canvas><span class="lbl">${esc(h.name).toUpperCase()}</span></button>`).join("")}</div>
   <p class="muted small" style="text-align:center">You can change this later in the Bag.</p>
   <button class="big center" id="go"><span class="lbl">▶ ONWARD</span></button>`;
-  document.querySelectorAll("canvas[data-c]").forEach(cv=>{const c=cv.getContext("2d");c.imageSmoothingEnabled=false;drawMap(c,HEROES[cv.dataset.c].map,0,0,6)});
+  document.querySelectorAll("canvas[data-c]").forEach(cv=>{const c=cv.getContext("2d");c.imageSmoothingEnabled=false;{const m=HEROES[cv.dataset.c].map;drawMap(c,m,(16-m[0].length)*3,0,6)}});
   document.querySelectorAll(".heroBtn").forEach(b=>b.onclick=()=>{setHero(b.dataset.h);SFX.click();document.querySelectorAll(".heroBtn").forEach(x=>x.classList.toggle("on",x===b))});
   $("#go").onclick=()=>{if(!load("hero",null))setHero("lad");SFX.loot();home()};
 }

@@ -5,7 +5,7 @@ service cloud.firestore {
     match /hits/{uid} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['name','team','weeks','hat','title','updated'])
+        && request.resource.data.keys().hasOnly(['name','team','weeks','hat','hero','title','updated'])
         && request.resource.data.name is string && request.resource.data.name.size() <= 24;
     }
   }

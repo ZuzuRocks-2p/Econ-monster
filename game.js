@@ -110,7 +110,8 @@ const TOME_BLINK=TOME_IDLE.map((row,i)=>(i===7||i===10)?row.replace(/w/g,"P"):(i
 const TOME_HIT=TOME_IDLE.map(row=>row.replace(/[pPdtgGby]/g,"w"));
 const TOME_DEAD=TOME_IDLE.map((row,i)=>i<12?"........................":row).map((row,i)=>(i>=14&&i<=18)?row.replace(/[grw]/g,"b"):row);
 // Hero: a decathlete with a backpack, 10x14
-const HERO=[
+const HEROES={
+ lad:{name:"Lad",icon:"🧑",map:[
 "...hhhh...",
 "..hhhhhh..",
 "..hssssh..",
@@ -124,7 +125,41 @@ const HERO=[
 "..jyjyjy..",
 "..yjyjyj..",
 "..ss..ss..",
-".kkk..kkk."];
+".kkk..kkk."]},
+ lass:{name:"Lass",icon:"👩",map:[
+"...hhhh...",
+"..hhhhhh..",
+".hhssssh..",
+".hhsbsbsh.",
+".hhsssshh.",
+".hh.ssss.h",
+"..ggggggs.",
+".gggGgggss",
+".sgGgggGs.",
+".sggggggs.",
+".jyjyjyjy.",
+".yjyjyjyj.",
+"..ss..ss..",
+".kkk..kkk."]},
+ scottie:{name:"Scottie",icon:"🐕",map:[
+"..........",
+"kk........",
+"kek.......",
+"keek......",
+"keeekkkkk.",
+"kweeeeeeek",
+"keeeeeeeek",
+"keeeeeeeek",
+".kjyjyjyk.",
+"..keeeeek.",
+"..kekkkek.",
+"..kek.kek.",
+"..kek.kek.",
+".kkk..kkk."]}
+};
+let HERO=HEROES[load("hero","lad")]?HEROES[load("hero","lad")].map:HEROES.lad.map;
+function setHero(k){if(!HEROES[k])return;save("hero",k);HERO=HEROES[k].map}
+function heroKey(){const k=load("hero","lad");return HEROES[k]?k:"lad"}
 const HATMAPS={crown:["y.y.y.y","yyyyyyy"],wizard:["...j...","..jjj..",".jjjjj.","jjjjjjj"],cap:["..rrrr.",".rrrrrr","rrrrrrrr"],halo:["yyyyyyy","y.....y"]};
 
 const PX=6;
@@ -170,7 +205,7 @@ function loop(){
   for(let i=0;i<fogN;i++){c.fillStyle=`rgba(123,220,90,${.05+.03*i})`;const fx=(Scene.t*(0.3+i*0.2))%(W+120)-60;c.fillRect(fx,H-40-(i>3?i*8:0)+i*5,120,10)}
   // hero
   drawMap(c,HERO,30,H-30-14*4,4);
-  if(S.hat&&HATMAPS[S.hat]){const hm=HATMAPS[S.hat];drawMap(c,hm,30+(10-hm[0].length)*2,H-30-14*4-hm.length*4+(S.hat==="halo"?-10:4),4)}
+  if(S.hat&&HATMAPS[S.hat]){const hm=HATMAPS[S.hat];const dog=heroKey()==="scottie";drawMap(c,hm,30+(dog?-8:(10-hm[0].length)*2),H-30-14*4-hm.length*4+(S.hat==="halo"?-10:4)+(dog?12:0),4)}
   // tome
   const bm=Scene.chapterId?bossMaps(Scene.chapterId):null;
   const M=bm||{idle:TOME_IDLE,cast:TOME_CAST,blink:TOME_BLINK,hit:TOME_HIT,dead:TOME_DEAD};
@@ -209,10 +244,10 @@ async function postDamage(dmg){
   const wk=weekId();S.weekLocal[wk]=(S.weekLocal[wk]||0)+dmg;save("weekLocal",S.weekLocal);
   if(!dbReady)return;
   try{const ref=DB.doc("hits/"+UID);const snap=await ref.get();const cur=snap.exists?snap.data():{};const weeks=Object.assign({},cur.weeks||{});weeks[wk]=(weeks[wk]||0)+dmg;
-    await ref.set({name:S.name||"Anonymous",team:S.team||"",weeks,hat:S.hat||"",title:S.title||"",updated:Date.now()})}catch(e){}
+    await ref.set({name:S.name||"Anonymous",team:S.team||"",weeks,hat:S.hat||"",hero:heroKey(),title:S.title||"",updated:Date.now()})}catch(e){}
 }
-function weeklyTotals(){const wk=weekId();if(dbReady){const rows=roster.map(r=>({name:r.name||"Someone",dmg:(r.weeks||{})[wk]||0,hat:r.hat||"",me:r.id===UID})).filter(r=>r.dmg>0).sort((a,b)=>b.dmg-a.dmg);return {rows,total:rows.reduce((a,r)=>a+r.dmg,0)}}
-  const me=S.weekLocal[wk]||0;return {rows:me?[{name:S.name||"You",dmg:me,hat:S.hat,me:true}]:[],total:me}}
+function weeklyTotals(){const wk=weekId();if(dbReady){const rows=roster.map(r=>({name:r.name||"Someone",dmg:(r.weeks||{})[wk]||0,hat:r.hat||"",hero:r.hero||"",me:r.id===UID})).filter(r=>r.dmg>0).sort((a,b)=>b.dmg-a.dmg);return {rows,total:rows.reduce((a,r)=>a+r.dmg,0)}}
+  const me=S.weekLocal[wk]||0;return {rows:me?[{name:S.name||"You",dmg:me,hat:S.hat,hero:heroKey(),me:true}]:[],total:me}}
 
 // ---------- UI ----------
 var G=null,timerId=null;
@@ -234,6 +269,7 @@ function checkEscape(){
 }
 
 function home(){
+  if(!load("hero",null)){pickHero();return}
   G=null;clearInterval(timerId);Scene.dead=false;Scene.state="idle";
   const justEscaped=checkEscape();
   const today=dayKey(),played=S.lastDay===today,dn=questDay();const wt=weeklyTotals();
@@ -380,6 +416,17 @@ function result(){
 }
 
 
+
+// ---------- HERO PICKER ----------
+function pickHero(){
+  app.innerHTML=`<header class="title"><p class="eyebrow">Choose your Scot</p><h1>Who faces<br>the Tome?</h1><div class="tartan" aria-hidden="true"></div></header>
+  <div class="heroes">${Object.entries(HEROES).map(([k,h])=>`<button class="ghost heroBtn ${heroKey()===k?"on":""}" data-h="${k}"><canvas width="60" height="84" data-c="${k}"></canvas><span class="lbl">${esc(h.name).toUpperCase()}</span></button>`).join("")}</div>
+  <p class="muted small" style="text-align:center">You can change this later in the Bag.</p>
+  <button class="big center" id="go"><span class="lbl">▶ ONWARD</span></button>`;
+  document.querySelectorAll("canvas[data-c]").forEach(cv=>{const c=cv.getContext("2d");c.imageSmoothingEnabled=false;drawMap(c,HEROES[cv.dataset.c].map,0,0,6)});
+  document.querySelectorAll(".heroBtn").forEach(b=>b.onclick=()=>{setHero(b.dataset.h);SFX.click();document.querySelectorAll(".heroBtn").forEach(x=>x.classList.toggle("on",x===b))});
+  $("#go").onclick=()=>{if(!load("hero",null))setHero("lad");SFX.loot();home()};
+}
 // ---------- STORY ----------
 function story(){
   save("storySeen",true);
@@ -407,7 +454,7 @@ function story(){
 function renderWeekly(){const el=$("#weekly");if(!el)return;const wt=weeklyTotals();const hp=Math.max(0,WEEK_MAX-wt.total);
   el.innerHTML=`<div class="row"><span class="eyebrow">TEAM TOME • week of ${weekId().slice(4,6)}/${weekId().slice(6)}</span><span class="hpnum">${hp.toLocaleString()}</span></div>${hpBar(hp,WEEK_MAX,"wide")}
   ${hp<=0?`<div class="loot"><span class="eyebrow">SLAIN</span><p>The team took the Tome down this week. It respawns Monday.</p></div>`:""}
-  <div class="card"><p class="eyebrow">Roster • damage this week</p>${wt.rows.length?wt.rows.map((r,i)=>`<div class="rrow ${r.me?"me":""}"><span class="pos">${i+1}</span><span class="rn">${r.hat?HATS[r.hat]+" ":""}${esc(r.name)}</span><span class="rd">${r.dmg.toLocaleString()}</span></div>`).join(""):"<p class='muted'>No damage logged yet this week. Every daily and practice fight counts.</p>"}
+  <div class="card"><p class="eyebrow">Roster • damage this week</p>${wt.rows.length?wt.rows.map((r,i)=>`<div class="rrow ${r.me?"me":""}"><span class="pos">${i+1}</span><span class="rn">${HEROES[r.hero]?HEROES[r.hero].icon+" ":""}${r.hat?HATS[r.hat]+" ":""}${esc(r.name)}</span><span class="rd">${r.dmg.toLocaleString()}</span></div>`).join(""):"<p class='muted'>No damage logged yet this week. Every daily and practice fight counts.</p>"}
   ${dbReady?"":"<p class='muted small'>Showing this phone only. Team pooling is not configured yet.</p>"}</div>`}
 function weekly(){wantTrack("overworld");
   app.innerHTML=`<header class="title"><p class="eyebrow">Everyone’s damage pools into one bar</p><h1>Weekly Boss</h1></header>${sceneHTML()}<div id="weekly"></div>
@@ -463,11 +510,13 @@ function rival(){wantTrack("overworld");
 function bag(){wantTrack("overworld");
   app.innerHTML=`<header class="title"><p class="eyebrow">Loot drops after a win</p><h1>Your Bag</h1></header>
   <div class="card"><p class="eyebrow">Items</p><p>${ITEMS.skip.n}: <b>${S.items.skip||0}</b> — ${ITEMS.skip.d}</p><p>${ITEMS.second.n}: <b>${S.items.second||0}</b> — ${ITEMS.second.d}</p></div>
+  <div class="card"><p class="eyebrow">Hero</p><div class="chips">${Object.entries(HEROES).map(([k,h])=>`<button class="chip ${heroKey()===k?"on":""}" data-hero="${k}">${h.icon} ${esc(h.name)}</button>`).join("")}</div></div>
   <div class="card"><p class="eyebrow">Hats</p>${S.hats.length?`<div class="chips">${S.hats.map(h=>`<button class="chip ${S.hat===h?"on":""}" data-h="${h}">${HATS[h]} ${h}</button>`).join("")}<button class="chip ${S.hat?"":"on"}" data-h="">none</button></div>`:"<p class='muted'>None yet.</p>"}</div>
   <div class="card"><p class="eyebrow">Titles</p>${S.titles.length?`<div class="chips">${S.titles.map(t=>`<button class="chip ${S.title===t?"on":""}" data-t="${esc(t)}">${esc(t)}</button>`).join("")}</div>`:"<p class='muted'>None yet.</p>"}</div>
   <button class="ghost center" id="home"><span class="lbl">BACK TO CAMPUS</span></button>`;
   $("#home").onclick=home;
   document.querySelectorAll("[data-h]").forEach(b=>b.onclick=()=>{S.hat=b.dataset.h;save("hat",S.hat);SFX.click();bag()});
+  document.querySelectorAll("[data-hero]").forEach(b=>b.onclick=()=>{setHero(b.dataset.hero);SFX.click();bag()});
   document.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{S.title=b.dataset.t;save("title",S.title);SFX.click();bag()});
 }
 home();

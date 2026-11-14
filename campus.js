@@ -12,10 +12,10 @@ const CAMPUS={
     6:{x:40,y:150,label:"Parking Lot"},
     7:{x:150,y:176,label:"Bus Loop"},
     8:{x:40,y:36,label:"Ball Fields"},
-    9:{x:96,y:60,label:"Art Room"},
-    10:{x:22,y:76,label:"Bleachers"},
-    11:{x:200,y:150,label:"ASB Store"},
-    12:{x:180,y:12,label:"Charger Dropoff"}
+    9:{x:22,y:76,label:"Bleachers"},
+    10:{x:200,y:150,label:"ASB Store"},
+    11:{x:180,y:12,label:"Charger Dropoff"},
+    12:{x:96,y:60,label:"Art Room"}
   }
 };
 const CP={grass:"#3d8f45",grass2:"#48a050",dirt:"#b89258",dirt2:"#a07e46",orchard:"#5d7f3c",tree:"#2e6b2a",treeHi:"#4f9a44",path:"#cfc8a8",road:"#4a4a55",roadLine:"#e8d26b",roof:"#5a3f36",roofHi:"#7a5a4c",roofLo:"#3f2a24",wall:"#d9cfb3",solar:"#243a66",solarHi:"#3b5aa0",court:"#2f6f8f",courtLine:"#dfe8ee",track:"#9e3b3b",trackLine:"#f1e9d2",field:"#4ba65a",water:"#3f78c0",shadow:"rgba(0,0,0,.25)",outline:"#1a1a26"};

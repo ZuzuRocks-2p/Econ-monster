@@ -16,10 +16,10 @@ const CHAPTERS={
  6:{name:"The Monopolist",sprite:"monopolist",move:"spin",pal:{P:"#d4a017",p:"#9a7210",d:"#5a4208"},loc:""},
  7:{name:"The Externality",sprite:"externality",move:"fog",pal:{P:"#2e8b57",p:"#1f5f3c",d:"#0f3320"},loc:""},
  8:{name:"The Deflator",sprite:"deflator",move:"shrink",pal:{P:"#4b2a7a",p:"#2d1650",d:"#1a0f2e"},loc:""},
- 9:{name:"The Moocher",sprite:"moocher",move:"grow",pal:{P:"#7a7a2a",p:"#5a5a1a",d:"#3a3a0a"},loc:""},
- 10:{name:"The Benchwarmer",sprite:"benchwarmer",move:"flicker",pal:{P:"#4a6a8a",p:"#2a4a6a",d:"#1a2a3a"},loc:""},
- 11:{name:"The ASB Cashbox",sprite:"cashbox",move:"grow",pal:{P:"#6a7a6a",p:"#4a5a4a",d:"#2a3a2a"},loc:""},
- 12:{name:"The Drop-Off Line",sprite:"dropoff",move:"slide",pal:{P:"#8a8a9a",p:"#5a5a6a",d:"#2a2a3a"},loc:""}
+ 9:{name:"The Benchwarmer",sprite:"benchwarmer",move:"flicker",pal:{P:"#4a6a8a",p:"#2a4a6a",d:"#1a2a3a"},loc:""},
+ 10:{name:"The ASB Cashbox",sprite:"cashbox",move:"grow",pal:{P:"#6a7a6a",p:"#4a5a4a",d:"#2a3a2a"},loc:""},
+ 11:{name:"The Drop-Off Line",sprite:"dropoff",move:"slide",pal:{P:"#8a8a9a",p:"#5a5a6a",d:"#2a2a3a"},loc:""},
+ 12:{name:"The Moocher",sprite:"moocher",move:"grow",pal:{P:"#7a7a2a",p:"#5a5a1a",d:"#3a3a0a"},loc:""}
 };
 Object.keys(CHAPTERS).forEach(s=>{CHAPTERS[s].loc=(CAMPUS.spots[s]||{}).label||"Campus"});
 const LOOT=[
@@ -30,8 +30,7 @@ const LOOT=[
 const HATS={crown:"👑",wizard:"🧠",cap:"🧢",halo:"😇"};
 function icon(n,cls=""){return `<img class="icon ${cls}" src="art/icons/${n}.png" alt="${n}">`}
 const ITEMS={skip:{n:"Skip",d:"Skip one question, no damage either way"},second:{n:"Second Chance",d:"Restore a heart once per fight"}};
-BANK.forEach(q=>{if(q.s===11)q.s=12;else if(q.s===10)q.s=11});
-const TAUGHT=8;let TOME_MAX=200;const WEEK_MAX=5000;
+const TAUGHT=11;let TOME_MAX=200;const WEEK_MAX=5000;
 
 // ---------- STATE ----------
 function load(k,d){try{const v=localStorage.getItem("econ."+k);return v==null?d:JSON.parse(v)}catch(e){return d}}
@@ -503,7 +502,7 @@ function story(){
   const pages=[
     {t:"Chapter 0: The Tome",b:"Every fall the Highland Academic Decathlon team receives one copy of the USAD Economics Resource Guide. This year's copy arrived early, unmarked, and already warm.<br><br>By Monday it had read itself. By Tuesday it had opinions."},
     {t:"Possession",b:"The Tome knows every curve, every elasticity, every tax wedge in the book, and it has decided the campus is a market it would like to corner.<br><br>It shifted the snack bar's supply curve left. It priced the parking lot like a monopolist. It put a ceiling on the water fountains and a floor on the vending machines. The Quad is in disequilibrium."},
-    {t:"The Chapters Break Loose",b:"Twelve chapters tore free and took up residence around the school, each with its favorite trap:<br><br><b>Scarcity</b> emptied the Snack Bar. <b>The Shifter</b> calls every movement on the Quad a shift. <b>Surplus & Shortage</b> fight over a price line in the Gym. <b>Midpoint</b> cracked the Library by dividing by the starting value. <b>The Wedge</b> split the Front Office. <b>The Monopolist</b> runs the only bus in the Parking Lot. <b>The Externality</b> fogs the Bus Loop. <b>The Deflator</b> leaks on the Ball Fields. <b>The Moocher</b> took the group grade in the Art Room. <b>The Benchwarmer</b> sits on the Bleachers. <b>The ASB Cashbox</b> prints Scot Bucks in the Student Store. <b>The Drop-Off Line</b> owns Charger Ave."},
+    {t:"The Chapters Break Loose",b:"Twelve chapters tore free and took up residence around the school, each with its favorite trap:<br><br><b>Scarcity</b> emptied the Snack Bar. <b>The Shifter</b> calls every movement on the Quad a shift. <b>Surplus & Shortage</b> fight over a price line in the Gym. <b>Midpoint</b> cracked the Library by dividing by the starting value. <b>The Wedge</b> split the Front Office. <b>The Monopolist</b> runs the only bus in the Parking Lot. <b>The Externality</b> fogs the Bus Loop. <b>The Deflator</b> leaks on the Ball Fields. <b>The Benchwarmer</b> miscounts the jobless on the Bleachers. <b>The ASB Cashbox</b> prints Scot Bucks in the Student Store. <b>The Drop-Off Line</b> owns Charger Ave and counts only money. <b>The Moocher</b> took the group grade in the Art Room."},
     {t:"Why You",b:"Only a Scot who knows the material can hurt it. A correct answer lands as a hit. A fast correct answer lands as a critical. A wrong answer feeds it, because a wrong answer is exactly what it wants you to carry into the exam in February.<br><br>The Tome is not afraid of you yet. That is the point of the daily quest."},
     {t:"How to Win",b:"<b>Daily Quest</b>: five questions and a chapter boss, same for everyone, new each day. Keep the streak or the Tome runs off with it.<br><b>Weekly Boss</b>: the whole team pools damage into one bar. Every fight counts.<br><b>Campus Map</b>: beat a chapter three times to free its location.<br><b>Rival</b>: paste a teammate's code to fight their exact quest.<br><br>Free all twelve locations and the Tome goes back to being a book. Then we take the real test."}
   ];

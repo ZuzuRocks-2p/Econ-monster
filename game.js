@@ -73,7 +73,7 @@ let pendingTrack=null,_hintShown=false;function pendingTrackShown(){if(_hintShow
 document.addEventListener("pointerdown",()=>{const hint=document.getElementById("sndHint");if(hint)hint.remove();Music.unlock();if(pendingTrack&&!S.muted){const t=pendingTrack;pendingTrack=null;Music.play(t)}},{passive:true});
 function wantTrack(n){if(S.muted)return;if(Music.current()===n)return;if(Music.unlock()&&Music.unlock().state==="running")Music.play(n);else pendingTrack=n}
 // ---------- PIXEL RENDERER ----------
-const PAL=Object.assign({".":null,G:"#b8ff9c",k:"#1a0f2e",p:"#4b2a7a",P:"#6a3fa8",d:"#2d1650",w:"#ffffff",b:"#111111",g:"#4ba65a",G:"#b8ff9c",y:"#ffb347",r:"#ff5c5c",t:"#e8d8b0",s:"#f0c9a0",h:"#3a2a1a",j:"#2d4f9d",o:"#e0a060"},BPAL);
+const PAL=Object.assign({".":null,G:"#b8ff9c",E:"#3e3e4e",L:"#5c5c6e",N:"#0a0a0e",k:"#1a0f2e",p:"#4b2a7a",P:"#6a3fa8",d:"#2d1650",w:"#ffffff",b:"#111111",g:"#4ba65a",G:"#b8ff9c",y:"#ffb347",r:"#ff5c5c",t:"#e8d8b0",s:"#f0c9a0",h:"#3a2a1a",j:"#2d4f9d",o:"#e0a060"},BPAL);
 const TOME_IDLE=[
 "......kkkkkkkkkkkkkkkk..",
 ".....kdPPPPPPPPPPPPPPkk.",
@@ -141,27 +141,36 @@ const HEROES={
 ".yjyjyjyj.",
 "..ss..ss..",
 ".kkk..kkk."]},
- scottie:{name:"Scottie",icon:"🐕",map:[
-"...........k....k.......",
-"..........kek..kek......",
-"..........keek.keek.....",
-"..........keeekeeeek....",
-"..........kEEEeeeeeek...",
-"..........keeeeeeeeekkkk",
-"..........kewkeeeeeeeeeb",
-"..........keeeeeeeeeeeek",
-"..kkkkkkkkkeeeeeeekkkkk.",
-".keeeeeeeeeeeeeeekeeeek.",
-".kjyjyjyjyjyjyjyjkeeeek.",
-".keeeeeeeeeeeeeeekeeeek.",
-".keeeeeeeeeeeeeeekkkkkk.",
-".kkeeeeeeeeeeeeeek......",
-"..kek.kek...kek.kek.....",
-"..kkk.kkk...kkk.kkk....."]}
+ scottie:{name:"Scottie",icon:"\ud83d\udc15",scale:.5,map:[
+"......................k...k.........",
+".....................kek.kek........",
+".....................kek.kek........",
+"....................keeekeeek.......",
+"....................keeekeeek.......",
+"....................kLLLLLLLk.......",
+".k..................kEEEEEEEk.......",
+"kLk.................kEeeeEEEkkkkkkkk",
+"kLEk...............kkEEEEwEkLLLLLLNN",
+"kEEk..............kEEEEEEEEkEEEEEENN",
+"kEEk..............kEEEEEEEEkEEEEEEEk",
+"kEEkkkkkkkkkkkkkkkkEEEEEEEEkeEEEEEEk",
+"kEELLLLLLLLLLLLLLLLEEEEkkkeekkkkkkkk",
+".kLLLLLLLLLLLLLLLLLjyjyjkkeeeeeeeeek",
+".kEEEEEEEEEEEEEEEEEEEkkk..keeeeeeek.",
+".kEEEEEEEEEEEEEEEEEEEk.....keeeeek..",
+".kEEEEEEEEEEEEEEEEEEEk......keeek...",
+".kEEEEEEEEEEEEEEEEEEEk.......kkk....",
+".keeeeeeeeeeeeeeeeeeek..............",
+".keeeeeeeeeeeeeeeeeeek..............",
+".keeeeeeeeeeeeeeeeeeek..............",
+"..keeekkeeekkeeekeeek...............",
+"..keeekkeeekkeeekeeek...............",
+"...kkk..kkk..kkk.kkk................"]}
 };
 let HERO=HEROES[load("hero","lad")]?HEROES[load("hero","lad")].map:HEROES.lad.map;
 function setHero(k){if(!HEROES[k])return;save("hero",k);HERO=HEROES[k].map}
 function heroKey(){const k=load("hero","lad");return HEROES[k]?k:"lad"}
+function heroScale(){return HEROES[heroKey()].scale||1}
 const HATMAPS={crown:["y.y.y.y","yyyyyyy"],wizard:["...j...","..jjj..",".jjjjj.","jjjjjjj"],cap:["..rrrr.",".rrrrrr","rrrrrrrr"],halo:["yyyyyyy","y.....y"]};
 
 const PX=6;
@@ -206,8 +215,8 @@ function loop(){
   const fogN=Scene.chapter&&Scene.chapter.move==="fog"?10:4;
   for(let i=0;i<fogN;i++){c.fillStyle=`rgba(123,220,90,${.05+.03*i})`;const fx=(Scene.t*(0.3+i*0.2))%(W+120)-60;c.fillRect(fx,H-40-(i>3?i*8:0)+i*5,120,10)}
   // hero
-  drawMap(c,HERO,30,H-30-14*4,4);
-  if(S.hat&&HATMAPS[S.hat]){const hm=HATMAPS[S.hat];const dog=heroKey()==="scottie";drawMap(c,hm,30+(dog?16:(10-hm[0].length)*2),H-30-14*4-hm.length*4+(S.hat==="halo"?-10:4)+(dog?12:0),4)}
+  {const hs=4*heroScale();drawMap(c,HERO,30,H-30-HERO.length*hs,hs)}
+  if(S.hat&&HATMAPS[S.hat]){const hm=HATMAPS[S.hat];const dog=heroKey()==="scottie";const hs=4*heroScale();const top=H-30-HERO.length*hs;drawMap(c,hm,dog?30+22*hs:30+(10-hm[0].length)*2,dog?top+1*hs-hm.length*4+(S.hat==="halo"?-10:2):top-hm.length*4+(S.hat==="halo"?-10:4),4)}
   // tome
   const bm=Scene.chapterId?bossMaps(Scene.chapterId):null;
   const M=bm||{idle:TOME_IDLE,cast:TOME_CAST,blink:TOME_BLINK,hit:TOME_HIT,dead:TOME_DEAD};
@@ -427,7 +436,7 @@ function pickHero(){
   <div class="heroes">${Object.entries(HEROES).map(([k,h])=>`<button class="ghost heroBtn ${heroKey()===k?"on":""}" data-h="${k}"><canvas width="120" height="80" data-c="${k}"></canvas><span class="lbl">${esc(h.name).toUpperCase()}</span></button>`).join("")}</div>
   <p class="muted small" style="text-align:center">You can change this later in the Bag.</p>
   <button class="big center" id="go"><span class="lbl">▶ ONWARD</span></button>`;
-  document.querySelectorAll("canvas[data-c]").forEach(cv=>{const c=cv.getContext("2d");c.imageSmoothingEnabled=false;{const m=HEROES[cv.dataset.c].map;drawMap(c,m,(24-m[0].length)*2.5,(16-m.length)*2.5,5)}});
+  document.querySelectorAll("canvas[data-c]").forEach(cv=>{const c=cv.getContext("2d");c.imageSmoothingEnabled=false;{const h=HEROES[cv.dataset.c];const m=h.map;const s=Math.floor(Math.min(110/m[0].length,74/m.length));drawMap(c,m,(120-m[0].length*s)/2,(80-m.length*s)/2,s)}});
   document.querySelectorAll(".heroBtn").forEach(b=>b.onclick=()=>{setHero(b.dataset.h);SFX.click();document.querySelectorAll(".heroBtn").forEach(x=>x.classList.toggle("on",x===b))});
   $("#go").onclick=()=>{if(!load("hero",null))setHero("lad");SFX.loot();home()};
 }
@@ -523,9 +532,9 @@ function campus(){wantTrack("overworld");
     if(target){const dx=target.x-hero.x,dy=target.y-hero.y,d=Math.hypot(dx,dy);if(d<1.5){hero.x=target.x;hero.y=target.y;target=null;save("heroPos",hero);const sp=spotAt(hero.x,hero.y-4);if(sp&&(!atSpot||sp[0]!==atSpot[0])){atSpot=sp;SFX.hit();info()}else if(!sp&&atSpot){atSpot=null;info()}}else{hero.x+=dx/d*1.6;hero.y+=dy/d*1.6;step++;if(step%8===0)SFX.step()}}
     c.setTransform(2,0,0,2,0,0);drawCampus(c,fs,performance.now());
     // hero (facing by direction, 2-frame walk)
-    const bobY=target&&Math.floor(step/6)%2?-1:0;const hx=hero.x-7,hy=hero.y-20+bobY;
-    px(c,hx+2,hero.y-1,11,2,CP.shadow);drawMap(c,HERO,hx,hy,1.5);
-    if(S.hat&&HATMAPS[S.hat]){const hm=HATMAPS[S.hat];drawMap(c,hm,hx+(10-hm[0].length)*.75,hy-hm.length*1.5+(S.hat==="halo"?-3:1.5),1.5)}
+    const ms=1.5*heroScale();const bobY=target&&Math.floor(step/6)%2?-1:0;const hx=hero.x-HERO[0].length*ms/2,hy=hero.y-HERO.length*ms+bobY;
+    px(c,hx+2,hero.y-1,HERO[0].length*ms-4,2,CP.shadow);drawMap(c,HERO,hx,hy,ms);
+    if(S.hat&&HATMAPS[S.hat]){const hm=HATMAPS[S.hat];const dog=heroKey()==="scottie";drawMap(c,hm,dog?hx+22*ms:hx+(10-hm[0].length)*.75,dog?hy+ms-hm.length*1.5:hy-hm.length*1.5+(S.hat==="halo"?-3:1.5),1.5)}
     if(target){c.fillStyle="rgba(255,211,107,.8)";c.fillRect(target.x-2,target.y-2,4,4)}
     c.setTransform(1,0,0,1,0,0);c.font="8px 'Press Start 2P',monospace";c.textAlign="center";
     Object.entries(CAMPUS.spots).forEach(([s,sp])=>{const lab=sp.label.toUpperCase();const w=c.measureText(lab).width+8;c.fillStyle="rgba(0,0,0,.6)";c.fillRect(sp.x*2-w/2,sp.y*2+6,w,12);c.fillStyle=fs.has(+s)?"#9fd8aa":"#fff";c.fillText(lab,sp.x*2,sp.y*2+15)});

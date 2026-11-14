@@ -30,7 +30,7 @@ const LOOT=[
 const HATS={crown:"👑",wizard:"🧠",cap:"🧢",halo:"😇"};
 function icon(n,cls=""){return `<img class="icon ${cls}" src="art/icons/${n}.png" alt="${n}">`}
 const ITEMS={skip:{n:"Skip",d:"Skip one question, no damage either way"},second:{n:"Second Chance",d:"Restore a heart once per fight"}};
-const TAUGHT=11;let TOME_MAX=200;const WEEK_MAX=5000;
+const TAUGHT=12;let TOME_MAX=200;const WEEK_MAX=5000;
 
 // ---------- STATE ----------
 function load(k,d){try{const v=localStorage.getItem("econ."+k);return v==null?d:JSON.parse(v)}catch(e){return d}}
@@ -335,7 +335,7 @@ function home(){
 }
 
 let attractT=null;function attract(){clearInterval(attractT);attractT=setInterval(()=>{if(!G&&Scene.cv&&Scene.cv.isConnected){sceneSet("cast");setTimeout(()=>{if(!G)sceneSet("idle")},1200)}else clearInterval(attractT)},5000)}
-function start(o){clearInterval(attractT);
+function start(o){clearInterval(attractT);if(!o.__tut&&!load("tutSeen",false)){tutorial(()=>start(Object.assign({__tut:true},o)));return}
   const seed=o.seed||(o.practice?Math.floor(Math.random()*1e9):o.weekly?parseInt(weekId())+7:dayKey());
   const n=o.weekly?12:5;
   TOME_MAX=o.weekly?420:200;
@@ -486,15 +486,35 @@ function coach(){
   const label=q=>{const t=q.term||q.spell||"";const pg=(q.src||"").match(/RG p\.([\d;, ]+)/);if(SESSIONS[q.s]===t)return "RG p."+(pg?pg[1].trim():"?");return t};
   const review=top.slice(0,6).map(x=>label(x.q)+(x.q.src?" ("+x.q.src.replace(/DemiDec /,"")+")":"")).join("\n");
   app.innerHTML=`<header class="title"><p class="eyebrow">Coach mode • ${dbReady?"team pooled":"this phone"+(load("coachImports",[]).length?" + "+load("coachImports",[]).length+" imported":"")}</p><h1>Where the Tome<br>is winning</h1><div class="tartan" aria-hidden="true"></div></header>
-  <div class="card"><p class="eyebrow">Today’s review list</p>${top.length?`<ol class="review">${top.slice(0,6).map(x=>`<li><b>${esc(x.q.term||x.q.spell)}</b> <span class="muted small">${esc(SESSIONS[x.q.s])} • missed ${x.n}× • ${x.rate}% miss rate</span><div class="small">${esc(x.q.q)}</div></li>`).join("")}</ol><button class="big center" id="copyReview"><span class="lbl">COPY REVIEW LIST</span></button>`:"<p class='muted'>No misses logged yet. Play a quest or import a student code below.</p>"}</div>
+  <div class="card"><p class="eyebrow">Today’s review list</p>${top.length?`<ol class="review">${top.slice(0,6).map(x=>`<li><b>${esc(x.q.term||x.q.spell)}</b> <span class="muted small">${esc(SESSIONS[x.q.s])} • missed ${x.n}× • ${x.rate}% miss rate</span><div class="small">${esc(x.q.q)}</div></li>`).join("")}</ol><div class="two"><button class="big center" id="copyReview"><span class="lbl">COPY REVIEW</span></button><button class="ghost center" id="csvBtn"><span class="lbl">COPY CSV</span></button></div>`:"<p class='muted'>No misses logged yet. Play a quest or import a student code below.</p>"}</div>
   <div class="card"><p class="eyebrow">Accuracy by session</p>${sess.map(x=>`<div class="srow"><span class="sn">${x.s}. ${esc(x.name)}</span><div class="sbar"><i style="width:${x.acc==null?0:x.acc}%" class="${x.acc!=null&&x.acc<70?"low":""}"></i></div><span class="sv">${x.acc==null?"—":x.acc+"%"}<small> ${x.seen}</small></span></div>`).join("")}<p class="muted small">Bar = correct rate. Small number = attempts.</p></div>
   <div class="card"><p class="eyebrow">Roster • week of ${wk.slice(4,6)}/${wk.slice(6)}</p>${people.map(p=>`<div class="rrow"><span class="pos">${p.days>2?"💤":"⚔️"}</span><span class="rn">${HEROES[p.hero]?HEROES[p.hero].icon+" ":""}${esc(p.name)} <small class="muted">🔥${p.streak}${p.days>0?" • "+p.days+"d ago":""}</small></span><span class="rd">${p.wkDmg.toLocaleString()}</span></div>`).join("")}<p class="muted small">💤 = no fight in 3+ days.</p></div>
   ${dbReady?"":`<div class="card"><p class="eyebrow">Pool without Firebase</p><p class="small">Students tap <b>Bag → Copy my coach code</b> and send it to you. Paste codes here.</p><input type="text" id="imp" placeholder="EMC1...." autocapitalize="off"><div class="two"><button class="ghost center" id="impBtn"><span class="lbl">IMPORT</span></button><button class="ghost center" id="impClear"><span class="lbl">CLEAR IMPORTS</span></button></div><p class="muted small" id="impMsg"></p></div>`}
   <button class="ghost center" id="home"><span class="lbl">BACK</span></button>`;
   $("#home").onclick=home;
+  const ce=$("#csvBtn");if(ce)ce.onclick=()=>{const wk=weekId();const lines=[["name","hero","streak","week_damage","days_since_fight","top_missed"].join(",")];
+    people.forEach(p=>{const tm=Object.entries(p.missed).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([id,n])=>{const q=byId[id];return (q?label(q):id)+" x"+n}).join("; ");lines.push([p.name,p.hero,p.streak,p.wkDmg,p.days,tm].map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(","))});
+    lines.push("");lines.push("question_id,session,term,missed,seen,miss_rate");
+    Object.entries(missQ).sort((a,b)=>b[1]-a[1]).forEach(([id,n])=>{const q=byId[id];if(!q)return;lines.push([id,q.s,'"'+label(q).replace(/"/g,'""')+'"',n,seenQ[id]||0,seenQ[id]?Math.round(n/seenQ[id]*100):100].join(","))});
+    const txt=lines.join("\n");try{navigator.clipboard.writeText(txt).then(()=>toast("CSV copied")).catch(()=>toast("Copy failed"))}catch(e){toast("Copy failed")}};
   const cr=$("#copyReview");if(cr)cr.onclick=()=>{const txt="Econ review — "+new Date().toLocaleDateString()+"\n"+review;try{navigator.clipboard.writeText(txt).then(()=>toast("Copied")).catch(()=>toast("Copy failed"))}catch(e){toast("Copy failed")}};
   const ib=$("#impBtn");if(ib)ib.onclick=()=>{const r=importCode($("#imp").value);if(!r){$("#impMsg").textContent="That code did not parse.";return}const arr=load("coachImports",[]).filter(x=>x.name!==r.name);arr.push(r);save("coachImports",arr);SFX.loot();coach()};
   const ic=$("#impClear");if(ic)ic.onclick=()=>{save("coachImports",[]);coach()};
+}
+
+// ---------- TUTORIAL ----------
+function tutorial(then){
+  if(load("tutSeen",false)){then();return}
+  const steps=[
+    {t:"How to hurt the Tome",b:"Answer right and you hit. Answer in under <b>3 seconds</b> and you land a <b>CRITICAL</b> for double damage."},
+    {t:"Combos",b:"Each correct answer in a row raises your combo and your damage. One miss breaks it, costs a heart, and heals the Tome."},
+    {t:"The boss round",b:"The Tome holds at <b>1 HP</b> until the chapter boss appears. The boss casts a trap from the test. Dodge it by answering the trap right."},
+    {t:"Three hearts",b:"Lose all three and the Tome devours you. Items from your Bag (Skip, Second Chance) can save a run."}
+  ];
+  let i=0;const ov=document.createElement("div");ov.className="tut";document.body.appendChild(ov);
+  const render=()=>{const s=steps[i];ov.innerHTML=`<div class="card tutcard"><p class="eyebrow">Tutorial ${i+1}/${steps.length}</p><h2>${s.t}</h2><p>${s.b}</p><button class="big center" id="tutNext"><span class="lbl">${i<steps.length-1?"NEXT \u25b6":"FIGHT"}</span></button><button class="ghost center small" id="tutSkip"><span class="lbl">SKIP</span></button></div>`;
+    $("#tutNext").onclick=()=>{SFX.click();if(i<steps.length-1){i++;render()}else done()};$("#tutSkip").onclick=done};
+  const done=()=>{save("tutSeen",true);ov.remove();then()};render();
 }
 // ---------- STORY ----------
 function story(){
@@ -502,7 +522,7 @@ function story(){
   const pages=[
     {t:"Chapter 0: The Tome",b:"Every fall the Highland Academic Decathlon team receives one copy of the USAD Economics Resource Guide. This year's copy arrived early, unmarked, and already warm.<br><br>By Monday it had read itself. By Tuesday it had opinions."},
     {t:"Possession",b:"The Tome knows every curve, every elasticity, every tax wedge in the book, and it has decided the campus is a market it would like to corner.<br><br>It shifted the snack bar's supply curve left. It priced the parking lot like a monopolist. It put a ceiling on the water fountains and a floor on the vending machines. The Quad is in disequilibrium."},
-    {t:"The Chapters Break Loose",b:"Twelve chapters tore free and took up residence around the school, each with its favorite trap:<br><br><b>Scarcity</b> emptied the Snack Bar. <b>The Shifter</b> calls every movement on the Quad a shift. <b>Surplus & Shortage</b> fight over a price line in the Gym. <b>Midpoint</b> cracked the Library by dividing by the starting value. <b>The Wedge</b> split the Front Office. <b>The Monopolist</b> runs the only bus in the Parking Lot. <b>The Externality</b> fogs the Bus Loop. <b>The Deflator</b> leaks on the Ball Fields. <b>The Benchwarmer</b> miscounts the jobless on the Bleachers. <b>The ASB Cashbox</b> prints Scot Bucks in the Student Store. <b>The Drop-Off Line</b> owns Charger Ave and counts only money. <b>The Moocher</b> took the group grade in the Art Room."},
+    {t:"The Chapters Break Loose",b:"Twelve chapters tore free and took up residence around the school, each with its favorite trap:<br><br><b>Scarcity</b> emptied the Snack Bar. <b>The Shifter</b> calls every movement on the Quad a shift. <b>Surplus & Shortage</b> fight over a price line in the Gym. <b>Midpoint</b> cracked the Library by dividing by the starting value. <b>The Wedge</b> split the Front Office. <b>The Monopolist</b> runs the only bus in the Parking Lot. <b>The Externality</b> fogs the Bus Loop. <b>The Deflator</b> leaks on the Ball Fields. <b>The Benchwarmer</b> miscounts the jobless on the Bleachers. <b>The ASB Cashbox</b> prints Scot Bucks in the Student Store. <b>The Drop-Off Line</b> owns Charger Ave and counts only money. <b>The Moocher</b> rides the roads for free from the Art Room."},
     {t:"Why You",b:"Only a Scot who knows the material can hurt it. A correct answer lands as a hit. A fast correct answer lands as a critical. A wrong answer feeds it, because a wrong answer is exactly what it wants you to carry into the exam in February.<br><br>The Tome is not afraid of you yet. That is the point of the daily quest."},
     {t:"How to Win",b:"<b>Daily Quest</b>: five questions and a chapter boss, same for everyone, new each day. Keep the streak or the Tome runs off with it.<br><b>Weekly Boss</b>: the whole team pools damage into one bar. Every fight counts.<br><b>Campus Map</b>: beat a chapter three times to free its location.<br><b>Rival</b>: paste a teammate's code to fight their exact quest.<br><br>Free all twelve locations and the Tome goes back to being a book. Then we take the real test."}
   ];

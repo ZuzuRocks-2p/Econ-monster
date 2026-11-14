@@ -4,18 +4,18 @@ const CAMPUS={
   w:256,h:224,
   // boss locations placed on real buildings (session -> position, label)
   spots:{
-    1:{x:62,y:150,label:"Snack Bar"},        // cafeteria/snack bar near track
-    2:{x:150,y:120,label:"The Quad"},
-    3:{x:118,y:118,label:"The Gym"},          // octagon gym
-    4:{x:205,y:72,label:"Library"},           // classroom pods
-    5:{x:230,y:30,label:"Front Office"},
-    6:{x:95,y:196,label:"Parking Lot"},       // carports on Claymore
-    7:{x:150,y:200,label:"Bus Loop"},
-    8:{x:40,y:30,label:"Ball Fields"},
-    9:{x:66,y:84,label:"Art Room"},
-    10:{x:28,y:140,label:"Bleachers"},
-    11:{x:190,y:160,label:"ASB Store"},
-    12:{x:200,y:8,label:"Charger Dropoff"}
+    1:{x:52,y:108,label:"Snack Bar"},
+    2:{x:150,y:100,label:"The Quad"},
+    3:{x:118,y:84,label:"The Gym"},
+    4:{x:206,y:60,label:"Library"},
+    5:{x:236,y:24,label:"Front Office"},
+    6:{x:40,y:150,label:"Parking Lot"},
+    7:{x:150,y:176,label:"Bus Loop"},
+    8:{x:40,y:36,label:"Ball Fields"},
+    9:{x:96,y:60,label:"Art Room"},
+    10:{x:22,y:76,label:"Bleachers"},
+    11:{x:200,y:150,label:"ASB Store"},
+    12:{x:180,y:12,label:"Charger Dropoff"}
   }
 };
 const CP={grass:"#3d8f45",grass2:"#48a050",dirt:"#b89258",dirt2:"#a07e46",orchard:"#5d7f3c",tree:"#2e6b2a",treeHi:"#4f9a44",path:"#cfc8a8",road:"#4a4a55",roadLine:"#e8d26b",roof:"#5a3f36",roofHi:"#7a5a4c",roofLo:"#3f2a24",wall:"#d9cfb3",solar:"#243a66",solarHi:"#3b5aa0",court:"#2f6f8f",courtLine:"#dfe8ee",track:"#9e3b3b",trackLine:"#f1e9d2",field:"#4ba65a",water:"#3f78c0",shadow:"rgba(0,0,0,.25)",outline:"#1a1a26"};
@@ -29,7 +29,7 @@ function building(c,x,y,w,h,hip=true){
   c.strokeStyle=CP.outline;c.lineWidth=1;c.strokeRect(x+.5,y+.5,w-1,h-1);
 }
 function diamond(c,x,y,r){px(c,x-r,y-r,2*r,2*r,CP.field);c.fillStyle=CP.dirt;c.beginPath();c.moveTo(x,y-r+2);c.lineTo(x+r-2,y);c.lineTo(x,y+r-2);c.lineTo(x-r+2,y);c.closePath();c.fill();px(c,x-3,y-3,6,6,CP.field);px(c,x-1,y-1,2,2,CP.dirt2);c.strokeStyle=CP.trackLine;c.lineWidth=1;c.beginPath();c.moveTo(x,y+r-2);c.lineTo(x+r-2,y);c.moveTo(x,y+r-2);c.lineTo(x-r+2,y);c.stroke()}
-function drawCampus(c,freedSet,now){
+var drawCampus=function(c,freedSet,now){
   const W=CAMPUS.w,H=CAMPUS.h;
   tile(c,0,0,W,H,CP.grass,CP.grass2);
   // roads: Charger Ave (top, curving) and Claymore St (bottom)
@@ -71,3 +71,56 @@ function drawCampus(c,freedSet,now){
     else{px(c,sp.x-5,sp.y-12+bob,10,12,"#4b2a7a");px(c,sp.x-5,sp.y-12+bob,10,2,"#6a3fa8");px(c,sp.x-3,sp.y-8+bob,2,2,"#ff5c5c");px(c,sp.x+1,sp.y-8+bob,2,2,"#ff5c5c");px(c,sp.x-6,sp.y-14+bob,12,2,"#000")}
   });
 }
+
+// ---------- IMAGE TILE OVERWORLD ----------
+const TILES={};let tilesReady=false;
+(function(){const names=["grass","grass2","grass3","grass4","dirtpatch","dirt","path","path2","path_v","road_h_edge","road_v","road_v2","road_v3","road_v4","road_t","tree_fruit","tree_round","bush","roof_a","roof_b","roof_c","wall_window","wall_door","wall_small","gym_a","gym_b","gym_c","gym_d","gymdoor","tennis","solar_a","solar_b","infield","track","bleachers","flagpole","bench_can","fence_lamp"];
+  let n=0;names.forEach(k=>{const im=new Image();im.onload=()=>{if(++n>=names.length*0.8)tilesReady=true};im.onerror=()=>{};im.src="art/tiles/"+k+".png";TILES[k]=im})})();
+function T(c,k,x,y,w=16,h=16){const im=TILES[k];if(im&&im.complete&&im.naturalWidth){c.drawImage(im,x,y,w,h);return true}return false}
+// 16x14 tile map (256x224 at 16px). Letters index TILEMAP_KEY.
+const TILEMAP_KEY={".":"grass",",":"grass2",";":"grass3","'":"grass4","d":"dirt","D":"dirtpatch","p":"path","P":"path_v","=":"road_h_edge","|":"road_v","T":"road_t","o":"tree_round","f":"tree_fruit","b":"bush","R":"roof_a","r":"roof_b","W":"wall_window","w":"wall_door","G":"gym_a","g":"gym_b","H":"gym_c","h":"gym_d","e":"gymdoor","t":"tennis","s":"solar_a","S":"solar_b","i":"infield","k":"track","L":"bleachers","F":"flagpole","n":"bench_can","c":"fence_lamp"};
+const TILEMAP=[
+"================================",
+"iiiiiii.,ffffffff,.iiiiii;.RrRrR",
+"iiiiiii,.ffffffff.,iiiiii,'WwWwW",
+"iiiiiii.,ffffffffD.iiiiii..,.o.,",
+"iiiiiii;'ffffffffD,iiiiii.RrRr.R",
+"kkkkkkk.,ffffffff.;......,WwWw,W",
+"kLLLLkk,.ffffffff,.o.RrRr.....,.",
+"kLLLLkk..pppppppppppWwWw.RrRr.o.",
+"kLLLLkk,.P.,.GgHh.,.....,WwWw...",
+"kLLLLkk..P..GgGgHh,.o.RrRr.....,",
+"kLLLLkk,.P.,GgGgHh..,.WwWw.RrRr.",
+"kkkkkkk..P..'eeee'.o......'WwWw,",
+"n.,DDDD,.P.pppppppppppppppp.....",
+".;DDDD..,P.,.o.,.RrRr.;.o.,RrRr,",
+"..tttt,.;P..,..;.WwWw.,..,.WwWw.",
+",.tttt..,P.o.,.c....,RrRr.......",
+"sssSSSs.;P..;.....'.,WwWw.,F.,o.",
+"sssSSSs,.Ppppppppppppppppppppp..",
+"sssSSSs.,P.,.o..RrRr.,..o.,.RrRr",
+"sssSSSs,;P.b..,.WwWw..;..,'.WwWw",
+",.,.,.,..P..,..,......o.,.......",
+".;.o.,.;.ppppppppppppppppppppp.;",
+",..,.;.,.,..;..,..;..,..;..,..,.",
+".,.,..,.,.,.,.,..,.,.,.,.,.,..,.",
+"================================",
+"================================",
+"================================",
+"================================"];
+function drawCampusTiles(c,freedSet,now){
+  if(!tilesReady)return false;
+  const W=256,H=224,ts=8;
+  for(let r=0;r<TILEMAP.length;r++)for(let col=0;col<32;col++){const ch=TILEMAP[r][col];const k=TILEMAP_KEY[ch]||"grass";
+    // ground under sprites that have transparency
+    if(["tree_round","tree_fruit","bush","flagpole","bench_can","fence_lamp","bleachers","solar_a","solar_b","gym_a","gym_b","gym_c","gym_d","gymdoor"].includes(k))T(c,k.startsWith("solar")?"road_v":k.startsWith("gym")?"path":"grass",col*ts-0.5,r*ts-0.5,ts+1,ts+1);
+    T(c,k,col*ts-0.5,r*ts-0.5,ts+1,ts+1)}
+  // boss markers
+  Object.entries(CAMPUS.spots).forEach(([s,sp])=>{const f=freedSet.has(+s);const bob=Math.sin((now||0)/300+s)*1.5;
+    px(c,sp.x-6,sp.y+6,12,2,"rgba(0,0,0,.3)");
+    if(f){px(c,sp.x-3,sp.y-10+bob,6,10,"#f1e9d2");px(c,sp.x-1,sp.y-14+bob,2,4,"#ffb347");px(c,sp.x-7,sp.y-16+bob,6,2,"#2d4f9d");px(c,sp.x-7,sp.y-14+bob,6,2,"#4ba65a")}
+    else{px(c,sp.x-5,sp.y-12+bob,10,12,"#4b2a7a");px(c,sp.x-5,sp.y-12+bob,10,2,"#6a3fa8");px(c,sp.x-3,sp.y-8+bob,2,2,"#ff5c5c");px(c,sp.x+1,sp.y-8+bob,2,2,"#ff5c5c");px(c,sp.x-6,sp.y-14+bob,12,2,"#000")}});
+  return true;
+}
+const _drawCampusProc=drawCampus;
+drawCampus=function(c,freedSet,now){if(!drawCampusTiles(c,freedSet,now))_drawCampusProc(c,freedSet,now)};

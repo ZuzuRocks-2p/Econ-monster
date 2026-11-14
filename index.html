@@ -213,6 +213,24 @@ button.opt.right{animation:popIn .3s}
 .sbar i.low{background:#ff5c5c}
 .srow .sv{font-family:var(--pixel);font-size:.6rem;text-align:right;color:var(--accent)}
 .srow .sv small{color:var(--muted);font-size:.45rem}
+
+/* 16-bit UI kit */
+.card,.win,.loot,.rankrow,.stats>div,.taunt{border:14px solid transparent;border-image:url("art/ui/frame.png") 70 fill / 14px stretch;background:none;box-shadow:0 6px 0 #0d1a3a;border-radius:0}
+.taunt{border-width:12px;border-image-width:12px}
+.taunt.cast{filter:none;color:#ffd9d9;position:relative}
+.taunt.cast::after{content:"";position:absolute;inset:-12px;background:rgba(255,60,60,.14);pointer-events:none}
+.stats>div{border-width:10px;border-image-width:10px;padding:6px 2px}
+.tartan{height:34px;background:url("art/ui/banner.png") center/contain no-repeat;border:0;margin:0}
+button.opt::before{content:"";width:14px;height:18px;background:url("art/ui/cursor.png") center/contain no-repeat;color:transparent;margin-right:0;flex:0 0 14px;opacity:0}
+button.opt:hover::before,button.opt:focus-visible::before{opacity:1}
+.heart{width:26px;height:24px;background:url("art/ui/heart0.png") center/contain no-repeat;clip-path:none;filter:none}
+.heart.off{background-image:url("art/ui/heart2.png")}
+.hpwrap{position:relative;height:34px;background:url("art/ui/hpbar.png") center/100% 100% no-repeat}
+.hpwrap .hpbar{position:absolute;left:9%;right:5%;top:30%;bottom:30%;border:0;background:none;padding:0;gap:2px}
+.hpwrap .hpbar i{height:100%}
+.titleCard{width:100%;aspect-ratio:1200/670;background:url("art/ui/title.jpg") center/cover no-repeat;border:0;border-radius:6px;box-shadow:0 8px 24px #000a}
+.scene{border:10px solid transparent;border-image:url("art/ui/frame.png") 70 / 10px stretch;box-shadow:0 8px 24px #000a;border-radius:0}
+.scene.map{aspect-ratio:256/224}
 </style>
 </head>
 <body>
@@ -221,11 +239,11 @@ button.opt.right{animation:popIn .3s}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=1794687722"></script>
-<script src="campus.js?v=1794687722"></script>
-<script src="bosses.js?v=1794687722"></script>
-<script src="music.js?v=1794687722"></script>
-<script src="questions.js?v=1794687722"></script>
-<script src="game.js?v=1794687722"></script>
+<script src="firebase-config.js?v=1794688144"></script>
+<script src="campus.js?v=1794688144"></script>
+<script src="bosses.js?v=1794688144"></script>
+<script src="music.js?v=1794688144"></script>
+<script src="questions.js?v=1794688144"></script>
+<script src="game.js?v=1794688144"></script>
 </body>
 </html>

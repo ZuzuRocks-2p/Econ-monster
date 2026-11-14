@@ -216,7 +216,7 @@ function loop(){
   const g=c.createLinearGradient(0,0,0,70);g.addColorStop(0,"#0d1a3a");g.addColorStop(1,"#2d4f9d");c.fillStyle=g;c.fillRect(-20,-20,W+40,90);
   Scene.stars.forEach(s=>{if(s.y>60)return;const a=.4+.6*Math.abs(Math.sin(Scene.t/40+s.tw));c.fillStyle=`rgba(255,240,200,${a})`;c.fillRect(Math.floor(s.x/3)*3,Math.floor(s.y/3)*3,3,3)});
   c.fillStyle="#ffd9a0";c.fillRect(292,26,26,26);c.fillStyle="#e8b880";c.fillRect(300,32,8,8);
-  if(!Scene.bg){Scene.bg=document.createElement("canvas");Scene.bg.width=256;Scene.bg.height=224;drawCampus(Scene.bg.getContext("2d"),new Set(),0)}
+  if(!Scene.bg||(!Scene.bgTiled&&tilesReady)){Scene.bg=document.createElement("canvas");Scene.bg.width=256;Scene.bg.height=224;drawCampus(Scene.bg.getContext("2d"),new Set(),0);Scene.bgTiled=tilesReady}
   c.save();c.imageSmoothingEnabled=false;
   const vx=Scene.chapter&&CAMPUS.spots[Scene.chapterId]?CAMPUS.spots[Scene.chapterId].x:118,vy=Scene.chapter&&CAMPUS.spots[Scene.chapterId]?CAMPUS.spots[Scene.chapterId].y:118;
   // perspective slices: draw rows of the map wider toward the bottom
@@ -290,7 +290,7 @@ const $=s=>document.querySelector(s);
 function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("on");setTimeout(()=>t.classList.remove("on"),1600)}
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 function rankFor(p){let r=RANKS[0][1];RANKS.forEach(([t,n])=>{if(p>=t)r=n});return r}
-function hpBar(v,max,cls=""){const segs=10,on=Math.ceil(v/max*segs);let s='<div class="hpbar '+cls+'" role="img" aria-label="HP '+v+'">';for(let i=0;i<segs;i++)s+=`<i class="${i<on?(on<=3?"on low":"on"):""}"></i>`;return s+'</div>'}
+function hpBar(v,max,cls=""){const segs=10,on=Math.ceil(v/max*segs);let s='<div class="hpwrap"><div class="hpbar '+cls+'" role="img" aria-label="HP '+v+'">';for(let i=0;i<segs;i++)s+=`<i class="${i<on?(on<=3?"on low":"on"):""}"></i>`;return s+'</div></div>'}
 function heartsHTML(h){let s='<div class="hearts" aria-label="'+h+' lives">';for(let i=0;i<3;i++)s+=`<span class="heart ${i<h?"":"off"}"></span>`;return s+'</div>'}
 function sceneHTML(){return `<div class="scene"><canvas id="scene" width="360" height="200"></canvas><div class="scan"></div><div id="fx"></div>${(!S.muted&&!Music.current()&&!pendingTrackShown())?`<div class="sndHint" id="sndHint">\ud83c\udfb5 tap anywhere for music</div>`:""}<button class="mute" id="mute" aria-label="toggle sound">${S.muted?"🔇":"🔊"}</button></div>`}
 function mountScene(ch){const cv=$("#scene");if(cv)sceneInit(cv);Scene.heroPose="idle";Scene.chapter=ch||null;Scene.chapterId=ch?Object.keys(CHAPTERS).find(k=>CHAPTERS[k]===ch):null;const m=$("#mute");if(m)m.onclick=()=>{S.muted=!S.muted;save("muted",S.muted);m.textContent=S.muted?"🔇":"🔊";if(!S.muted)SFX.click()}}
@@ -308,8 +308,8 @@ function home(){
   const justEscaped=checkEscape();
   const today=dayKey(),played=S.lastDay===today,dn=questDay();const wt=weeklyTotals();
   app.innerHTML=`
+  <div class="titleCard" role="img" aria-label="The possessed Tome looms over Highland High"></div>
   <header class="title"><p class="eyebrow">Highland High \u2022 Home of the Scots</p><h1>Escape from<br>the Econ Monster</h1><div class="tartan" aria-hidden="true"></div></header>
-  ${sceneHTML()}
   ${S.escaped?`<div class="taunt cast"><b>THE TOME ESCAPED</b> with your ${S.escaped.streak}-day streak${justEscaped?"":""}. Win ${2-S.recapture} more daily quest${2-S.recapture===1?"":"s"} in a row to recapture it.</div>`:`<div class="taunt">“${esc(TAUNTS[dn%TAUNTS.length])}”</div>`}
   <div class="stats">
     <div><div class="n">${S.streak}</div><div class="l">Streak</div></div>
@@ -326,7 +326,7 @@ function home(){
   <div class="field"><label class="eyebrow" for="team">Team code (prefixes share cards)</label><input type="text" id="team" value="${esc(S.team)}" placeholder="HHS-ECON" maxlength="16"></div>
   <button class="ghost center" id="coachBtn"><span class="lbl">COACH MODE</span></button>
   <p class="footer">Questions from DemiDec Section Exams 1–3 and the session case studies.</p>`;
-  mountScene(null);attract();wantTrack("overworld");
+  wantTrack("overworld");
   $("#startDaily").onclick=()=>{SFX.click();start({practice:false})};$("#startPractice").onclick=()=>{SFX.click();start({practice:true})};
   $("#weeklyBtn").onclick=()=>{SFX.click();weekly()};$("#storyBtn").onclick=()=>{SFX.click();story()};$("#mapBtn").onclick=()=>{SFX.click();campus()};$("#rivalBtn").onclick=()=>{SFX.click();rival()};$("#bagBtn").onclick=()=>{SFX.click();bag()};
   $("#coachBtn").onclick=()=>{SFX.click();coach()};

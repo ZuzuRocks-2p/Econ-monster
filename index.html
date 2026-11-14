@@ -26,7 +26,7 @@ body.flash{animation:flash .4s}
 @keyframes flash{0%{background-color:#5a1f1f}100%{background-color:var(--bg)}}
 .app{max-width:440px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
 h1{font-family:var(--pixel);font-size:1.25rem;line-height:1.5;margin:0;color:var(--accent);text-shadow:3px 3px 0 #000,0 0 18px #ffb34766;text-wrap:balance}
-h1.win{color:var(--tome);text-shadow:3px 3px 0 #000,0 0 18px #7bdc5a88}
+h1.victory{color:var(--tome);text-shadow:3px 3px 0 #000,0 0 18px #7bdc5a88}
 h1.lose{color:var(--hurt);text-shadow:3px 3px 0 #000,0 0 18px #ff5c5c88}
 .title{text-align:center;padding-top:6px;display:flex;flex-direction:column;gap:8px}
 p{margin:0}
@@ -180,6 +180,9 @@ h1{color:#ffd36b;text-shadow:3px 3px 0 #0d1a3a,0 0 14px #4ba65a66}
 .tartan{height:10px;background:
   repeating-linear-gradient(90deg,#2d4f9d 0 8px,#4ba65a 8px 12px,#2d4f9d 12px 20px,#ffd36b 20px 22px),
   #2d4f9d;border-top:2px solid #0d1a3a;border-bottom:2px solid #0d1a3a;margin:-4px 0 2px}
+.card.story p{font-size:1.05rem;line-height:1.55}
+.card.story b{color:var(--accent)}
+button:disabled.ghost{opacity:.5}
 </style>
 </head>
 <body>

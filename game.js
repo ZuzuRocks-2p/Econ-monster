@@ -25,7 +25,7 @@ const LOOT=[
 ];
 const HATS={crown:"👑",wizard:"🧠",cap:"🧢",halo:"😇"};
 const ITEMS={skip:{n:"Skip",d:"Skip one question, no damage either way"},second:{n:"Second Chance",d:"Restore a heart once per fight"}};
-const TAUGHT=8;const TOME_MAX=100;const WEEK_MAX=3000;
+const TAUGHT=8;let TOME_MAX=200;const WEEK_MAX=5000;
 
 // ---------- STATE ----------
 function load(k,d){try{const v=localStorage.getItem("econ."+k);return v==null?d:JSON.parse(v)}catch(e){return d}}
@@ -202,7 +202,7 @@ function weeklyTotals(){const wk=weekId();if(dbReady){const rows=roster.map(r=>(
   const me=S.weekLocal[wk]||0;return {rows:me?[{name:S.name||"You",dmg:me,hat:S.hat,me:true}]:[],total:me}}
 
 // ---------- UI ----------
-let G=null,timerId=null;
+var G=null,timerId=null;
 const app=document.getElementById("app");
 const $=s=>document.querySelector(s);
 function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("on");setTimeout(()=>t.classList.remove("on"),1600)}
@@ -237,13 +237,14 @@ function home(){
   <button class="big" id="startDaily"><span class="lbl">${played?"REPLAY QUEST #"+dn:"DAILY QUEST #"+dn}</span><span class="sub">5 questions + chapter boss • Sessions 1–${TAUGHT}</span></button>
   <button class="ghost" id="weeklyBtn"><span class="lbl">WEEKLY BOSS</span><span class="sub">Team HP ${Math.max(0,WEEK_MAX-wt.total).toLocaleString()} / ${WEEK_MAX.toLocaleString()} • ${wt.rows.length} fighter${wt.rows.length===1?"":"s"}</span></button>
   <div class="two"><button class="ghost center" id="mapBtn"><span class="lbl">CAMPUS MAP</span></button><button class="ghost center" id="rivalBtn"><span class="lbl">RIVAL</span></button></div>
+  <button class="ghost center" id="storyBtn"><span class="lbl">\ud83d\udcd6 THE STORY${load("storySeen",false)?"":" \u2022 NEW"}</span></button>
   <div class="two"><button class="ghost center" id="startPractice"><span class="lbl">PRACTICE</span></button><button class="ghost center" id="bagBtn"><span class="lbl">BAG (${(S.items.skip||0)+(S.items.second||0)})</span></button></div>
   <div class="field"><label class="eyebrow" for="pname">Your name (shows on the team roster)</label><input type="text" id="pname" value="${esc(S.name)}" placeholder="First name" maxlength="20"></div>
   <div class="field"><label class="eyebrow" for="team">Team code (prefixes share cards)</label><input type="text" id="team" value="${esc(S.team)}" placeholder="HHS-ECON" maxlength="16"></div>
   <p class="footer">Questions from DemiDec Section Exams 1–3 and the session case studies.</p>`;
   mountScene(null);
   $("#startDaily").onclick=()=>{SFX.click();start({practice:false})};$("#startPractice").onclick=()=>{SFX.click();start({practice:true})};
-  $("#weeklyBtn").onclick=()=>{SFX.click();weekly()};$("#mapBtn").onclick=()=>{SFX.click();campus()};$("#rivalBtn").onclick=()=>{SFX.click();rival()};$("#bagBtn").onclick=()=>{SFX.click();bag()};
+  $("#weeklyBtn").onclick=()=>{SFX.click();weekly()};$("#storyBtn").onclick=()=>{SFX.click();story()};$("#mapBtn").onclick=()=>{SFX.click();campus()};$("#rivalBtn").onclick=()=>{SFX.click();rival()};$("#bagBtn").onclick=()=>{SFX.click();bag()};
   $("#pname").oninput=e=>{S.name=e.target.value.trim();save("name",S.name)};
   $("#team").oninput=e=>{S.team=e.target.value.trim();save("team",S.team)};
 }
@@ -251,6 +252,7 @@ function home(){
 function start(o){
   const seed=o.seed||(o.practice?Math.floor(Math.random()*1e9):o.weekly?parseInt(weekId())+7:dayKey());
   const n=o.weekly?12:5;
+  TOME_MAX=o.weekly?420:200;
   G=Object.assign({},buildQuest(seed,n),{n,i:0,tome:TOME_MAX,hearts:3,combo:0,best:0,dmg:0,log:[],t0:Date.now(),qStart:0,done:false,practice:!!o.practice,weekly:!!o.weekly,rival:o.rival||null,usedSecond:false,crits:0});
   G.chapter=CHAPTERS[G.boss.s]||CHAPTERS[1];
   Scene.dead=false;fight();
@@ -298,7 +300,7 @@ function answer(v){
     G.combo++;G.best=Math.max(G.best,G.combo);crit=secs<3;
     const speed=crit?2.0:secs<8?1.3:1.0,base=isBoss?35:20;
     dealt=Math.round(base*speed*(1+0.1*(G.combo-1)));
-    G.tome=Math.max(0,G.tome-dealt);G.dmg+=dealt;G.log.push("🟩");sceneSet("hit");burst(crit?50:24,crit?"#ffffff":"#ffb347");
+    G.tome=Math.max(isBoss?0:1,G.tome-dealt);G.dmg+=dealt;G.log.push("🟩");sceneSet("hit");burst(crit?50:24,crit?"#ffffff":"#ffb347");
     if(crit){G.crits++;Scene.crit=12;Scene.shake=18;fx("CRITICAL −"+dealt,"crit");SFX.crit()}else{fx("−"+dealt,"hit");SFX.hit()}
     taunt=SULK[Math.floor(Math.random()*SULK.length)];
     if(G.tome<=0){setTimeout(()=>{sceneSet("dead");burst(60,"#7bdc5a");SFX.death()},300)}
@@ -313,7 +315,7 @@ function answer(v){
   $("#hp").innerHTML=hpBar(G.tome,TOME_MAX);$("#hpTxt").textContent=G.tome;const cb=$("#combo");if(cb){cb.textContent=G.combo>1?"x"+G.combo+" COMBO":"";cb.classList.toggle("hot",G.combo>=3)}
   const correctTxt=q.type==="num"?q.ans.toLocaleString():q.opts[q.a];
   $("#why").innerHTML=`<div class="taunt ${ok?"":"cast"}">“${esc(taunt)}”</div><div class="why ${ok?"ok":"bad"}"><b>${ok?(crit?"CRITICAL. ":isBoss?"DODGED. ":"HIT. "):v===null?"TOO SLOW. ":"MISS. "}</b>${esc(q.why)}${ok?"":" <span class='muted'>Answer: "+esc(correctTxt)+"</span>"}${q.src?"<div class='src'>"+esc(q.src)+"</div>":""}</div>
-  <button class="big center" id="next"><span class="lbl">${G.hearts<=0||G.tome<=0||G.i>=G.n?"SEE RESULT":"NEXT ▶"}</span></button>`;
+  ${(!isBoss&&G.tome<=1)?`<div class="taunt">The Tome is at 1 HP and clinging to its spine. Only the chapter boss can finish it.</div>`:""}<button class="big center" id="next"><span class="lbl">${G.hearts<=0||G.tome<=0||G.i>=G.n?"SEE RESULT":"NEXT ▶"}</span></button>`;
   $("#next").onclick=()=>{G.i++;if(G.hearts<=0||G.tome<=0||G.i>G.n)result();else fight()};
 }
 function rollLoot(){if(Math.random()<.35)return null;const l=LOOT[Math.floor(Math.random()*LOOT.length)];
@@ -340,7 +342,7 @@ function result(){
   const card=`${S.team?S.team+" • ":""}${S.hat?HATS[S.hat]+" ":""}Econ Monster ${G.weekly?"Weekly":G.practice?"Practice":"Day "+dn} — ${won?G.chapter.name+" slain":"Tome HP "+G.tome} in ${mm}:${ss} ⚔️${G.log.join("")} — ${G.dmg} dmg${G.crits?" • "+G.crits+" crit":""} • x${G.best} combo — 🔥${S.streak}${G.rival?"\nvs "+G.rival.name+": "+G.rival.dmg+" dmg in "+Math.floor(G.rival.secs/60)+":"+String(G.rival.secs%60).padStart(2,"0")+" — "+(G.dmg>G.rival.dmg?"I WIN":G.dmg<G.rival.dmg?"THEY WIN":"TIE"):"\nRival me: "+code}`;
   const correct=G.log.filter(x=>x==="🟩").length,total=G.n+1;
   app.innerHTML=`
-  <header class="title"><p class="eyebrow">${G.weekly?"Weekly boss":G.practice?"Practice fight":G.rival?"Rival fight":"Daily Quest #"+dn}</p><h1 class="${won?"win":"lose"}">${won?esc(G.chapter.name).toUpperCase()+"<br>SLAIN":G.hearts<=0?"DEVOURED":"TOME ESCAPED"}</h1></header>
+  <header class="title"><p class="eyebrow">${G.weekly?"Weekly boss":G.practice?"Practice fight":G.rival?"Rival fight":"Daily Quest #"+dn}</p><h1 class="${won?"victory":"lose"}">${won?esc(G.chapter.name).toUpperCase()+"<br>SLAIN":G.hearts<=0?"DEVOURED":"TOME ESCAPED"}</h1></header>
   ${sceneHTML()}
   ${streakMsg?`<div class="taunt"><b>${esc(streakMsg)}</b></div>`:""}
   ${loot?`<div class="loot"><span class="eyebrow">LOOT DROP</span><p>${loot.k==="hat"?HATS[loot.v]+" "+loot.v+" hat (equipped)":loot.k==="title"?"Title: <em>"+esc(loot.v)+"</em>":ITEMS[loot.v].n+" — "+ITEMS[loot.v].d}</p></div>`:""}
@@ -358,6 +360,30 @@ function result(){
   $("#again").onclick=()=>start({practice:true});$("#home").onclick=home;
 }
 
+
+// ---------- STORY ----------
+function story(){
+  save("storySeen",true);
+  const pages=[
+    {t:"Chapter 0: The Tome",b:"Every fall the Highland Academic Decathlon team receives one copy of the USAD Economics Resource Guide. This year's copy arrived early, unmarked, and already warm.<br><br>By Monday it had read itself. By Tuesday it had opinions."},
+    {t:"Possession",b:"The Tome knows every curve, every elasticity, every tax wedge in the book, and it has decided the campus is a market it would like to corner.<br><br>It shifted the snack bar's supply curve left. It priced the parking lot like a monopolist. It put a ceiling on the water fountains and a floor on the vending machines. The Quad is in disequilibrium."},
+    {t:"The Chapters Break Loose",b:"Eight chapters tore free and took up residence around the school, each with its favorite trap:<br><br><b>The Hoarder</b> at the Snack Bar forgets forgone income. <b>The Shifter</b> on the Quad calls every movement a shift. <b>Disequilibrium</b> haunts the Gym. <b>Midpoint</b> cracks the Library by dividing by the starting value. <b>The Wedge</b> splits the Front Office. <b>The Monopolist</b> rules the Parking Lot. <b>The Externality</b> fogs the Bus Loop. <b>The Deflator</b> shrinks the Ball Fields."},
+    {t:"Why You",b:"Only a Scot who knows the material can hurt it. A correct answer lands as a hit. A fast correct answer lands as a critical. A wrong answer feeds it, because a wrong answer is exactly what it wants you to carry into the exam in February.<br><br>The Tome is not afraid of you yet. That is the point of the daily quest."},
+    {t:"How to Win",b:"<b>Daily Quest</b>: five questions and a chapter boss, same for everyone, new each day. Keep the streak or the Tome runs off with it.<br><b>Weekly Boss</b>: the whole team pools damage into one bar. Every fight counts.<br><b>Campus Map</b>: beat a chapter three times to free its location.<br><b>Rival</b>: paste a teammate's code to fight their exact quest.<br><br>Free all eight locations and the Tome goes back to being a book. Then we take the real test."}
+  ];
+  let i=0;
+  const render=()=>{const p=pages[i];
+    app.innerHTML=`<header class="title"><p class="eyebrow">Escape from the Econ Monster</p><h1>${esc(p.t)}</h1><div class="tartan" aria-hidden="true"></div></header>
+    ${sceneHTML()}
+    <div class="card story"><p>${p.b}</p></div>
+    <div class="two"><button class="ghost center" id="prev" ${i===0?"disabled":""}><span class="lbl">\u25c0 BACK</span></button><button class="big center" id="nextp"><span class="lbl">${i<pages.length-1?"NEXT \u25b6":"TO CAMPUS"}</span></button></div>
+    <p class="muted small" style="text-align:center">${i+1} / ${pages.length}</p>`;
+    mountScene(i===2?CHAPTERS[2]:null);if(i===1||i===2)sceneSet("cast");
+    $("#prev").onclick=()=>{if(i>0){i--;SFX.click();render()}};
+    $("#nextp").onclick=()=>{SFX.click();if(i<pages.length-1){i++;render()}else home()};
+  };
+  render();
+}
 // ---------- WEEKLY BOSS ----------
 function renderWeekly(){const el=$("#weekly");if(!el)return;const wt=weeklyTotals();const hp=Math.max(0,WEEK_MAX-wt.total);
   el.innerHTML=`<div class="row"><span class="eyebrow">TEAM TOME • week of ${weekId().slice(4,6)}/${weekId().slice(6)}</span><span class="hpnum">${hp.toLocaleString()}</span></div>${hpBar(hp,WEEK_MAX,"wide")}

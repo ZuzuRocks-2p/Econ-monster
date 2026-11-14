@@ -78,7 +78,7 @@ const SFX={
 };
 
 // ---------- PIXEL RENDERER ----------
-const PAL={".":null,G:"#b8ff9c",k:"#1a0f2e",p:"#4b2a7a",P:"#6a3fa8",d:"#2d1650",w:"#ffffff",b:"#111111",g:"#4ba65a",G:"#b8ff9c",y:"#ffb347",r:"#ff5c5c",t:"#e8d8b0",s:"#f0c9a0",h:"#3a2a1a",j:"#2d4f9d",o:"#e0a060"};
+const PAL=Object.assign({".":null,G:"#b8ff9c",k:"#1a0f2e",p:"#4b2a7a",P:"#6a3fa8",d:"#2d1650",w:"#ffffff",b:"#111111",g:"#4ba65a",G:"#b8ff9c",y:"#ffb347",r:"#ff5c5c",t:"#e8d8b0",s:"#f0c9a0",h:"#3a2a1a",j:"#2d4f9d",o:"#e0a060"},BPAL);
 const TOME_IDLE=[
 "......kkkkkkkkkkkkkkkk..",
 ".....kdPPPPPPPPPPPPPPkk.",
@@ -133,6 +133,15 @@ const HERO=[
 const HATMAPS={crown:["y.y.y.y","yyyyyyy"],wizard:["...j...","..jjj..",".jjjjj.","jjjjjjj"],cap:["..rrrr.",".rrrrrr","rrrrrrrr"],halo:["yyyyyyy","y.....y"]};
 
 const PX=6;
+const BOSS_VARIANTS={};
+function bossMaps(id){if(BOSS_VARIANTS[id])return BOSS_VARIANTS[id];const base=BOSS_SPRITES[id];if(!base)return null;
+  const eyesRows=base.map((r,i)=>/w[bw]w|wb|bw/.test(r)?i:-1).filter(i=>i>=0);
+  const cast=base.map((r,i)=>eyesRows.includes(i)?r.replace(/w/g,"x").replace(/b/g,"X"):r);
+  const blink=base.map((r,i)=>eyesRows.includes(i)?r.replace(/[wb]/g,"k"):r);
+  const hit=base.map(r=>r.replace(/[^.k]/g,"w"));
+  const h=base.length,cut=Math.floor(h*0.4);
+  const dead=base.map((r,i)=>i<cut?".".repeat(r.length):base[i-cut]).map(r=>r.replace(/[wW]/g,"e").replace(/b/g,"k"));
+  return BOSS_VARIANTS[id]={idle:base,cast,blink,hit,dead}}
 function drawMap(ctx,map,x,y,sc,pal=PAL,c0=0,c1=99){for(let r=0;r<map.length;r++)for(let c=Math.max(0,c0);c<Math.min(map[r].length,c1);c++){const col=pal[map[r][c]];if(col){ctx.fillStyle=col;ctx.fillRect(x+c*sc,y+r*sc,sc,sc)}}}
 
 const Scene={cv:null,ctx:null,w:360,h:200,t:0,state:"idle",stateT:0,shake:0,parts:[],dead:false,raf:null,stars:[],bld:[],chapter:null,crit:0};
@@ -168,11 +177,13 @@ function loop(){
   drawMap(c,HERO,30,H-30-14*4,4);
   if(S.hat&&HATMAPS[S.hat]){const hm=HATMAPS[S.hat];drawMap(c,hm,30+(10-hm[0].length)*2,H-30-14*4-hm.length*4+(S.hat==="halo"?-10:4),4)}
   // tome
-  let map=TOME_IDLE;let bob=Math.sin(Scene.t/14)*4;const pal=Scene.chapter?Object.assign({},PAL,Scene.chapter.pal):PAL;
-  if(Scene.dead)map=TOME_DEAD,bob=0;
-  else if(Scene.state==="hit"){map=Scene.stateT<8?TOME_HIT:TOME_IDLE;if(Scene.stateT>14)Scene.state="idle"}
-  else if(Scene.state==="cast"){map=TOME_CAST;bob=Math.sin(Scene.t/4)*2;c.fillStyle=`rgba(255,92,92,${.15+.1*Math.sin(Scene.t/5)})`;c.beginPath();c.arc(180,100,80,0,6.28);c.fill()}
-  else{if(Scene.t%140<6)map=TOME_BLINK}
+  const bm=Scene.chapterId?bossMaps(Scene.chapterId):null;
+  const M=bm||{idle:TOME_IDLE,cast:TOME_CAST,blink:TOME_BLINK,hit:TOME_HIT,dead:TOME_DEAD};
+  let map=M.idle;let bob=Math.sin(Scene.t/14)*4;const pal=(Scene.chapter&&!bm)?Object.assign({},PAL,Scene.chapter.pal):PAL;
+  if(Scene.dead)map=M.dead,bob=0;
+  else if(Scene.state==="hit"){map=Scene.stateT<8?M.hit:M.idle;if(Scene.stateT>14)Scene.state="idle"}
+  else if(Scene.state==="cast"){map=M.cast;bob=Math.sin(Scene.t/4)*2;c.fillStyle=`rgba(255,92,92,${.15+.1*Math.sin(Scene.t/5)})`;c.beginPath();c.arc(180,100,80,0,6.28);c.fill()}
+  else{if(Scene.t%140<6)map=M.blink}
   if(!Scene.dead){c.fillStyle=`rgba(123,220,90,${.12+.06*Math.sin(Scene.t/10)})`;c.beginPath();c.ellipse(180,170,60,8,0,0,6.28);c.fill()}
   const mv=Scene.chapter&&!Scene.dead?Scene.chapter.move:null;
   let tx=180-12*PX,ty=28+bob,sc=PX;
@@ -184,8 +195,8 @@ function loop(){
   if(mv==="flicker"&&Math.random()<.08)c.globalAlpha=.35;
   if(mv==="split"){const off=8+6*Math.sin(Scene.t/10);drawMap(c,map,tx-off,ty,sc,pal,0,12);drawMap(c,map,tx+off,ty,sc,pal,12,24);c.fillStyle="#ffb347";c.fillRect(178,ty+20,4,80)}
   else drawMap(c,map,tx,ty,sc,pal);
-  if(mv==="crack"){c.strokeStyle="#000";c.lineWidth=3;c.beginPath();c.moveTo(tx+12*PX,ty+6);for(let i=1;i<12;i++)c.lineTo(tx+12*PX+((i%2)?6:-6),ty+6+i*13);c.stroke()}
-  if(mv==="spin"){drawMap(c,HATMAPS.crown,tx+8*PX+4,ty-12,PX,PAL)}
+  if(mv==="crack"&&!bm){c.strokeStyle="#000";c.lineWidth=3;c.beginPath();c.moveTo(tx+12*PX,ty+6);for(let i=1;i<12;i++)c.lineTo(tx+12*PX+((i%2)?6:-6),ty+6+i*13);c.stroke()}
+  if(mv==="spin"&&!bm){drawMap(c,HATMAPS.crown,tx+8*PX+4,ty-12,PX,PAL)}
   c.restore();
   if(Scene.crit>0){c.fillStyle=`rgba(255,255,255,${Scene.crit/12})`;c.fillRect(-20,-20,W+40,H+40);Scene.crit--}
   Scene.parts=Scene.parts.filter(p=>p.l>0);Scene.parts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.25;p.l--;c.fillStyle=p.col;c.globalAlpha=Math.min(1,p.l/15);c.fillRect(Math.floor(p.x/3)*3,Math.floor(p.y/3)*3,4,4)});c.globalAlpha=1;
@@ -282,7 +293,7 @@ function fight(){
   <div class="two">${S.items.skip>0&&!isBoss?`<button class="ghost center item" id="useSkip"><span class="lbl">SKIP (${S.items.skip})</span></button>`:""}${S.items.second>0&&G.hearts<3&&!G.usedSecond?`<button class="ghost center item" id="useSecond"><span class="lbl">2ND CHANCE (${S.items.second})</span></button>`:""}</div>
   <button class="ghost center" id="quit">Flee to campus</button>`;
   window.scrollTo({top:0});
-  mountScene(isBoss?G.chapter:null);sceneSet(isBoss?"cast":"idle");
+  mountScene((isBoss||G.session)?G.chapter:null);sceneSet(isBoss?"cast":"idle");
   if(isBoss){const f=$("#fx");if(f){const e=document.createElement("div");e.className="bossIntro";e.innerHTML=`<span>${esc(G.chapter.name)}</span><small>appears</small>`;f.appendChild(e);setTimeout(()=>e.remove(),2200);SFX.combo()}}
   $("#quit").onclick=home;
   const sk=$("#useSkip");if(sk)sk.onclick=()=>{S.items.skip--;save("items",S.items);G.log.push("⬜");G.i++;SFX.click();toast("Skipped");G.i>G.n?result():fight()};

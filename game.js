@@ -1,10 +1,10 @@
 
 
-const TAUNTS=["Your opportunity cost of studying was sleep, mortal.","I shift curves for fun. You shift nothing.","Divide by the starting value. Everyone does.","The library is mine. The cafeteria is next.","I have no close substitutes. You have no chance.","Your demand for mercy is perfectly inelastic.","Every wrong answer heals me. Keep going."];
+const TAUNTS=["Plaid up all you like. I eat tartan.","Your opportunity cost of studying was sleep, mortal.","I shift curves for fun. You shift nothing.","Divide by the starting value. Everyone does.","The library is mine. The cafeteria is next.","I have no close substitutes. You have no chance.","Your demand for mercy is perfectly inelastic.","Every wrong answer heals me. Keep going."];
 const MOCK=["“%s”? Bold. Wrong, but bold.","You chose “%s.” I wrote that distractor myself.","“%s” is what the freshmen pick.","Ah, “%s.” Delicious.","“%s.” Did you even read page %p?","I fed on “%s” and grew stronger."];
 const SULK=["Lucky guess.","Fine. FINE.","That one wasn’t even on the test.","Who taught you that?","Ow. Rude.","I felt that in my index."];
 const SLOW=["Too slow. The bell rang.","Time is an opportunity cost, child.","I aged a chapter waiting."];
-const RANKS=[[0,"Freshman"],[150,"Price Taker"],[400,"Price Maker"],[900,"Invisible Hand"],[1800,"Tome Slayer"]];
+const RANKS=[[0,"Wee Scot"],[150,"Price Taker"],[400,"Price Maker"],[900,"Invisible Hand"],[1800,"Royal Scot"],[3500,"Tome Slayer"]];
 const SESSIONS={1:"Fundamentals",2:"Demand & Supply",3:"Equilibrium & Surplus",4:"Elasticity",5:"Gov’t Policy",6:"Market Structures",7:"Market Failures",8:"GDP, Prices & Growth",9:"Gains from Trade",10:"Money & Fluctuations",11:"Transportation"};
 // Chapter bosses: one per session, with a palette swap and a signature move the scene renders.
 const CHAPTERS={
@@ -71,7 +71,7 @@ const SFX={
 };
 
 // ---------- PIXEL RENDERER ----------
-const PAL={".":null,k:"#1a0f2e",p:"#4b2a7a",P:"#6a3fa8",d:"#2d1650",w:"#ffffff",b:"#111111",g:"#7bdc5a",G:"#b8ff9c",y:"#ffb347",r:"#ff5c5c",t:"#e8d8b0",s:"#f0c9a0",h:"#3a2a1a",j:"#2f6fb5",o:"#e0a060"};
+const PAL={".":null,G:"#b8ff9c",k:"#1a0f2e",p:"#4b2a7a",P:"#6a3fa8",d:"#2d1650",w:"#ffffff",b:"#111111",g:"#4ba65a",G:"#b8ff9c",y:"#ffb347",r:"#ff5c5c",t:"#e8d8b0",s:"#f0c9a0",h:"#3a2a1a",j:"#2d4f9d",o:"#e0a060"};
 const TOME_IDLE=[
 "......kkkkkkkkkkkkkkkk..",
 ".....kdPPPPPPPPPPPPPPkk.",
@@ -115,13 +115,13 @@ const HERO=[
 "..hsbsbs..",
 "..hsssss..",
 "...ssss...",
-"..jjjjjjo.",
-".jjjjjjjjo",
-".jsjjjjsj.",
-".ojjjjjjo.",
-"..jjjjjj..",
-"..bb..bb..",
-"..bb..bb..",
+"..ggggggs.",
+".gggGgggss",
+".sgGgggGs.",
+".sggggggs.",
+"..jyjyjy..",
+"..yjyjyj..",
+"..ss..ss..",
 ".kkk..kkk."];
 const HATMAPS={crown:["y.y.y.y","yyyyyyy"],wizard:["...j...","..jjj..",".jjjjj.","jjjjjjj"],cap:["..rrrr.",".rrrrrr","rrrrrrrr"],halo:["yyyyyyy","y.....y"]};
 
@@ -145,7 +145,7 @@ function loop(){
   const sx=Scene.shake>0?(Math.random()-.5)*Scene.shake:0,sy=Scene.shake>0?(Math.random()-.5)*Scene.shake:0;if(Scene.shake>0)Scene.shake-=1;
   c.translate(sx,sy);
   // JRPG battle backdrop: dusk sky band over a slice of the campus overworld
-  const g=c.createLinearGradient(0,0,0,70);g.addColorStop(0,"#1b1340");g.addColorStop(1,"#6b3a7a");c.fillStyle=g;c.fillRect(-20,-20,W+40,90);
+  const g=c.createLinearGradient(0,0,0,70);g.addColorStop(0,"#0d1a3a");g.addColorStop(1,"#2d4f9d");c.fillStyle=g;c.fillRect(-20,-20,W+40,90);
   Scene.stars.forEach(s=>{if(s.y>60)return;const a=.4+.6*Math.abs(Math.sin(Scene.t/40+s.tw));c.fillStyle=`rgba(255,240,200,${a})`;c.fillRect(Math.floor(s.x/3)*3,Math.floor(s.y/3)*3,3,3)});
   c.fillStyle="#ffd9a0";c.fillRect(292,26,26,26);c.fillStyle="#e8b880";c.fillRect(300,32,8,8);
   if(!Scene.bg){Scene.bg=document.createElement("canvas");Scene.bg.width=256;Scene.bg.height=224;drawCampus(Scene.bg.getContext("2d"),new Set(),0)}
@@ -154,7 +154,7 @@ function loop(){
   // perspective slices: draw rows of the map wider toward the bottom
   for(let row=0;row<130;row+=2){const t=row/130;const scale=1.2+t*1.6;const srcW=W/scale,srcH=2/scale;c.drawImage(Scene.bg,Math.max(0,Math.min(256-srcW,vx-srcW/2)),Math.max(0,Math.min(224-srcH,vy-60+row/2.2)),srcW,srcH,-20,70+row,W+40,2.5)}
   c.restore();
-  c.fillStyle="rgba(10,8,30,.35)";c.fillRect(-20,70,W+40,130);
+  c.fillStyle="rgba(13,26,58,.35)";c.fillRect(-20,70,W+40,130);
   const fogN=Scene.chapter&&Scene.chapter.move==="fog"?10:4;
   for(let i=0;i<fogN;i++){c.fillStyle=`rgba(123,220,90,${.05+.03*i})`;const fx=(Scene.t*(0.3+i*0.2))%(W+120)-60;c.fillRect(fx,H-40-(i>3?i*8:0)+i*5,120,10)}
   // hero
@@ -225,7 +225,7 @@ function home(){
   const justEscaped=checkEscape();
   const today=dayKey(),played=S.lastDay===today,dn=questDay();const wt=weeklyTotals();
   app.innerHTML=`
-  <header class="title"><p class="eyebrow">Highland Acadec • Economics</p><h1>Escape from<br>the Econ Monster</h1></header>
+  <header class="title"><p class="eyebrow">Highland High \u2022 Home of the Scots</p><h1>Escape from<br>the Econ Monster</h1><div class="tartan" aria-hidden="true"></div></header>
   ${sceneHTML()}
   ${S.escaped?`<div class="taunt cast"><b>THE TOME ESCAPED</b> with your ${S.escaped.streak}-day streak${justEscaped?"":""}. Win ${2-S.recapture} more daily quest${2-S.recapture===1?"":"s"} in a row to recapture it.</div>`:`<div class="taunt">“${esc(TAUNTS[dn%TAUNTS.length])}”</div>`}
   <div class="stats">

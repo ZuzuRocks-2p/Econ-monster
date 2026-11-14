@@ -14,7 +14,7 @@ const CAMPUS={
     8:{x:40,y:30,label:"Ball Fields"}
   }
 };
-const CP={grass:"#3f8f3a",grass2:"#4aa344",dirt:"#b89258",dirt2:"#a07e46",orchard:"#5d7f3c",tree:"#2e6b2a",treeHi:"#4f9a44",path:"#cfc8a8",road:"#4a4a55",roadLine:"#e8d26b",roof:"#5a3f36",roofHi:"#7a5a4c",roofLo:"#3f2a24",wall:"#d9cfb3",solar:"#243a66",solarHi:"#3b5aa0",court:"#2f6f8f",courtLine:"#dfe8ee",track:"#b04a3c",trackLine:"#f1e9d2",field:"#3a8a3a",water:"#3f78c0",shadow:"rgba(0,0,0,.25)",outline:"#1a1a26"};
+const CP={grass:"#3d8f45",grass2:"#48a050",dirt:"#b89258",dirt2:"#a07e46",orchard:"#5d7f3c",tree:"#2e6b2a",treeHi:"#4f9a44",path:"#cfc8a8",road:"#4a4a55",roadLine:"#e8d26b",roof:"#5a3f36",roofHi:"#7a5a4c",roofLo:"#3f2a24",wall:"#d9cfb3",solar:"#243a66",solarHi:"#3b5aa0",court:"#2f6f8f",courtLine:"#dfe8ee",track:"#9e3b3b",trackLine:"#f1e9d2",field:"#4ba65a",water:"#3f78c0",shadow:"rgba(0,0,0,.25)",outline:"#1a1a26"};
 function px(c,x,y,w,h,col){c.fillStyle=col;c.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h))}
 function tile(c,x,y,w,h,a,b,s=4){for(let j=0;j<h;j+=s)for(let i=0;i<w;i+=s)px(c,x+i,y+j,s,s,((i/s+j/s)%2)?a:b)}
 function tree(c,x,y){px(c,x+2,y+6,4,3,"#5a3a1a");px(c,x,y,8,7,CP.tree);px(c,x+1,y,3,3,CP.treeHi);px(c,x+1,y+6,6,1,CP.shadow)}
@@ -63,7 +63,7 @@ function drawCampus(c,freedSet,now){
   // boss markers
   Object.entries(CAMPUS.spots).forEach(([s,sp])=>{const f=freedSet.has(+s);const bob=Math.sin((now||0)/300+s)*1.5;
     px(c,sp.x-6,sp.y+6,12,2,CP.shadow);
-    if(f){px(c,sp.x-3,sp.y-10+bob,6,10,"#f1e9d2");px(c,sp.x-1,sp.y-14+bob,2,4,"#ffb347");px(c,sp.x-7,sp.y-16+bob,6,4,"#7bdc5a")}
+    if(f){px(c,sp.x-3,sp.y-10+bob,6,10,"#f1e9d2");px(c,sp.x-1,sp.y-14+bob,2,4,"#ffb347");px(c,sp.x-7,sp.y-16+bob,6,2,"#2d4f9d");px(c,sp.x-7,sp.y-14+bob,6,2,"#4ba65a")}
     else{px(c,sp.x-5,sp.y-12+bob,10,12,"#4b2a7a");px(c,sp.x-5,sp.y-12+bob,10,2,"#6a3fa8");px(c,sp.x-3,sp.y-8+bob,2,2,"#ff5c5c");px(c,sp.x+1,sp.y-8+bob,2,2,"#ff5c5c");px(c,sp.x-6,sp.y-14+bob,12,2,"#000")}
   });
 }

@@ -84,7 +84,7 @@ input.good{border-color:var(--good)}input.bad{border-color:var(--hurt)}
 .why.ok b{color:var(--good)}.why.bad b{color:var(--hurt)}
 .share{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.85rem;background:#000;border:3px dashed var(--line);border-radius:4px;padding:12px;white-space:pre-wrap;word-break:break-word}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}
-.stats div{background:var(--panel);border:3px solid var(--line);border-radius:6px;padding:10px 4px;display:flex;flex-direction:column;gap:6px}
+.stats>div{background:var(--panel);border:3px solid var(--line);border-radius:6px;padding:10px 4px;display:flex;flex-direction:column;gap:6px}
 .stats .n{font-family:var(--pixel);font-size:1.1rem;color:var(--accent);line-height:1}
 .stats .n.rk{font-size:.55rem;line-height:1.4;color:var(--tome)}
 .stats .l{font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:900}
@@ -132,7 +132,7 @@ button.item{border-color:var(--accent)}
 /* 90s JRPG skin */
 :root{--bg:#0a0a2a;--panel:#10184a;--panel2:#1a2466;--line:#f1e9d2;--lineHi:#8aa0ff;--fg:#f1e9d2;--muted:#aab4e0;--accent:#ffd36b;--accentDk:#a8781a}
 body{background:#0a0a2a;background-image:linear-gradient(180deg,#0a0a2a 0%,#141a5a 100%)}
-.card,.stats div,.rankrow,.loc,.win,.loot{background:linear-gradient(180deg,#1a2466,#10184a);border:3px solid var(--line);border-radius:8px;box-shadow:0 0 0 2px #0a0a2a,0 0 0 4px #8aa0ff,0 6px 0 4px #0a0a2a}
+.card,.stats>div,.rankrow,.loc,.win,.loot{background:linear-gradient(180deg,#1a2466,#10184a);border:3px solid var(--line);border-radius:8px;box-shadow:0 0 0 2px #0a0a2a,0 0 0 4px #8aa0ff,0 6px 0 4px #0a0a2a}
 .win{padding:12px}
 .taunt{background:#10184a;border:3px solid var(--line);border-left-width:3px;border-radius:8px;box-shadow:0 0 0 2px #0a0a2a,0 0 0 4px #8aa0ff;color:#f1e9d2;font-style:normal;font-weight:700}
 .taunt.cast{background:#3a1030;border-color:#ffb3c6;color:#ffe0ea}
@@ -154,6 +154,32 @@ h1{color:#ffd36b;text-shadow:3px 3px 0 #0a0a2a,0 0 14px #ffd36b66}
 .rrow.me{background:#2a3480}
 .loc{display:grid}
 .locs{gap:8px}
+
+/* Highland Scots theme: royal blue #2d4f9d, kelly green #4ba65a, tartan */
+:root{--bg:#0d1a3a;--panel:#1a3270;--panel2:#2d4f9d;--line:#f1e9d2;--lineHi:#4ba65a;--fg:#f4f1e6;--muted:#b9c6e8;--accent:#ffd36b;--accentDk:#a8781a;--tome:#4ba65a;--good:#4ba65a;--green:#4ba65a;--blue:#2d4f9d}
+body{background:#0d1a3a;background-image:
+  repeating-linear-gradient(0deg,transparent 0 22px,rgba(75,166,90,.10) 22px 26px,transparent 26px 48px,rgba(255,211,107,.06) 48px 50px),
+  repeating-linear-gradient(90deg,transparent 0 22px,rgba(75,166,90,.10) 22px 26px,transparent 26px 48px,rgba(255,211,107,.06) 48px 50px),
+  linear-gradient(180deg,#0d1a3a,#132a5c)}
+.card,.stats>div,.rankrow,.loc,.win,.loot{background:linear-gradient(180deg,#2d4f9d,#1a3270);border:3px solid var(--line);box-shadow:0 0 0 2px #0d1a3a,0 0 0 4px var(--green),0 6px 0 4px #0d1a3a}
+.taunt{background:#1a3270;border-color:var(--line);box-shadow:0 0 0 2px #0d1a3a,0 0 0 4px var(--green)}
+.taunt.cast{background:#4a1030;border-color:#ffb3c6;box-shadow:0 0 0 2px #0d1a3a,0 0 0 4px #ff5c5c}
+button.ghost,button.opt{background:linear-gradient(180deg,#2d4f9d,#1a3270);border-color:var(--line);box-shadow:0 0 0 2px #0d1a3a,0 4px 0 2px #0d1a3a}
+button.opt.right{background:#2f7a3c;border-color:#b8ff9c}
+button.big{background:linear-gradient(180deg,#6fd080,#4ba65a);color:#0d1a3a;box-shadow:0 0 0 2px #0d1a3a,0 4px 0 2px #0d1a3a}
+button.big:active{box-shadow:0 0 0 2px #0d1a3a,0 1px 0 2px #0d1a3a}
+.hpbar{background:#0d1a3a}
+.hpbar i{background:#1a3270}
+.hpbar i.on{background:#4ba65a;box-shadow:inset 0 -5px 0 #2f7a3c}
+.scene{box-shadow:0 0 0 2px #0d1a3a,0 0 0 4px var(--green),0 10px 30px #000a}
+h1{color:#ffd36b;text-shadow:3px 3px 0 #0d1a3a,0 0 14px #4ba65a66}
+.eyebrow{color:#9fd8aa}
+.rrow.me{background:#2f7a3c}
+.loc.free{border-color:#b8ff9c}
+.rank,.stats .n.rk,.rrow .rd{color:#9fd8aa}
+.tartan{height:10px;background:
+  repeating-linear-gradient(90deg,#2d4f9d 0 8px,#4ba65a 8px 12px,#2d4f9d 12px 20px,#ffd36b 20px 22px),
+  #2d4f9d;border-top:2px solid #0d1a3a;border-bottom:2px solid #0d1a3a;margin:-4px 0 2px}
 </style>
 </head>
 <body>

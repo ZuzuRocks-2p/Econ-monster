@@ -8,15 +8,16 @@ const RANKS=[[0,"Freshman"],[150,"Price Taker"],[400,"Price Maker"],[900,"Invisi
 const SESSIONS={1:"Fundamentals",2:"Demand & Supply",3:"Equilibrium & Surplus",4:"Elasticity",5:"Gov’t Policy",6:"Market Structures",7:"Market Failures",8:"GDP, Prices & Growth",9:"Gains from Trade",10:"Money & Fluctuations",11:"Transportation"};
 // Chapter bosses: one per session, with a palette swap and a signature move the scene renders.
 const CHAPTERS={
- 1:{name:"The Hoarder",move:"grow",pal:{P:"#8a5a2a",p:"#6a3f1a",d:"#3a200a"},loc:"Cafeteria"},
- 2:{name:"The Shifter",move:"slide",pal:{P:"#2f6fb5",p:"#1f4f85",d:"#0f2a50"},loc:"The Quad"},
- 3:{name:"Disequilibrium",move:"flicker",pal:{P:"#5a5a6a",p:"#3f3f4f",d:"#22222f"},loc:"The Gym"},
- 4:{name:"Midpoint",move:"crack",pal:{P:"#b04a9a",p:"#80306c",d:"#48163c"},loc:"The Library"},
- 5:{name:"The Wedge",move:"split",pal:{P:"#c0392b",p:"#8a2418",d:"#4a100a"},loc:"City Hall"},
- 6:{name:"The Monopolist",move:"spin",pal:{P:"#d4a017",p:"#9a7210",d:"#5a4208"},loc:"Parking Lot"},
- 7:{name:"The Externality",move:"fog",pal:{P:"#2e8b57",p:"#1f5f3c",d:"#0f3320"},loc:"Bus Loop"},
- 8:{name:"The Deflator",move:"shrink",pal:{P:"#4b2a7a",p:"#2d1650",d:"#1a0f2e"},loc:"Admin Office"}
+ 1:{name:"The Hoarder",move:"grow",pal:{P:"#8a5a2a",p:"#6a3f1a",d:"#3a200a"},loc:""},
+ 2:{name:"The Shifter",move:"slide",pal:{P:"#2f6fb5",p:"#1f4f85",d:"#0f2a50"},loc:""},
+ 3:{name:"Disequilibrium",move:"flicker",pal:{P:"#5a5a6a",p:"#3f3f4f",d:"#22222f"},loc:""},
+ 4:{name:"Midpoint",move:"crack",pal:{P:"#b04a9a",p:"#80306c",d:"#48163c"},loc:""},
+ 5:{name:"The Wedge",move:"split",pal:{P:"#c0392b",p:"#8a2418",d:"#4a100a"},loc:""},
+ 6:{name:"The Monopolist",move:"spin",pal:{P:"#d4a017",p:"#9a7210",d:"#5a4208"},loc:""},
+ 7:{name:"The Externality",move:"fog",pal:{P:"#2e8b57",p:"#1f5f3c",d:"#0f3320"},loc:""},
+ 8:{name:"The Deflator",move:"shrink",pal:{P:"#4b2a7a",p:"#2d1650",d:"#1a0f2e"},loc:""}
 };
+Object.keys(CHAPTERS).forEach(s=>{CHAPTERS[s].loc=(CAMPUS.spots[s]||{}).label||"Campus"});
 const LOOT=[
  {k:"title",v:"Vanquisher of Deadweight Loss"},{k:"title",v:"Midpoint Enjoyer"},{k:"title",v:"Certified Price Taker"},{k:"title",v:"Curve Shifter"},{k:"title",v:"Surplus Hunter"},{k:"title",v:"Tax Wedge Survivor"},
  {k:"hat",v:"crown"},{k:"hat",v:"wizard"},{k:"hat",v:"cap"},{k:"hat",v:"halo"},
@@ -72,36 +73,40 @@ const SFX={
 // ---------- PIXEL RENDERER ----------
 const PAL={".":null,k:"#1a0f2e",p:"#4b2a7a",P:"#6a3fa8",d:"#2d1650",w:"#ffffff",b:"#111111",g:"#7bdc5a",G:"#b8ff9c",y:"#ffb347",r:"#ff5c5c",t:"#e8d8b0",s:"#f0c9a0",h:"#3a2a1a",j:"#2f6fb5",o:"#e0a060"};
 const TOME_IDLE=[
-"....kkkkkkkkkkkkkk..",
-"...kdPPPPPPPPPPPPkk.",
-"..kdpPPyPyPPyPyPpdk.",
-"..kdpPPPyPPPPyPPpdk.",
-"..kdpPkkPPPPPPkkpdk.",
-"..kdpPPkkwPPwkkPpdk.",
-"..kdpPwwwwPPwwwwpdk.",
-"..kdpPwbbwPPwbbwpdk.",
-"..kdpPwwwwPPwwwwpdk.",
-"..kdpPPPPPPPPPPPpdk.",
-"..kdpPbbbbbbbbbPpdk.",
-"..kdpPbwgwgwgwbPpdk.",
-"..kdpPbggggggggbpdk.",
-"..kdpPbgrrrrrggbpdk.",
-"..kdpPbbrrrrrbbPpdk.",
-"..kdpPPbbbbbbbPPpdk.",
-"..kdpPPPPPPPPPPPpdk.",
-"..kdpPPPyyyyyPPPpdk.",
-"..kdpPPPyPPPyPPPpdk.",
-"..kdpPPPyyyyyPPPpdk.",
-"...kdddddddddddddk..",
-"...kttttttttttttkk..",
-"....kkkkkkkkkkkkk...",
-"...................."];
-const TOME_CAST=TOME_IDLE.map((row,i)=>(i>=5&&i<=8)?row.replace(/w/g,"r").replace(/b/g,"y"):row);
-const TOME_BLINK=TOME_IDLE.map((row,i)=>(i===6||i===8)?row.replace(/w/g,"P"):i===7?row.replace(/[wb]/g,"k"):row);
+"......kkkkkkkkkkkkkkkk..",
+".....kdPPPPPPPPPPPPPPkk.",
+"....kdpPPyyPPPPPPyyPPpdk",
+"....kdpPPPyyPPPPyyPPPpdk",
+"....kdpPPPPPPPPPPPPPPpdk",
+"....kdpPkkkPPPPPPkkkPpdk",
+"....kdpPPkkkwPPwkkkPPpdk",
+"....kdpPwwwwwPPwwwwwPpdk",
+"....kdpPwbbwwPPwwbbwPpdk",
+"....kdpPwbbwwPPwwbbwPpdk",
+"....kdpPwwwwwPPwwwwwPpdk",
+"....kdpPPPPPPPPPPPPPPpdk",
+"....kdpPPPPPPPPPPPPPPpdk",
+"....kdpPbbbbbbbbbbbbPpdk",
+"....kdpPbwgwgwgwgwgbPpdk",
+"....kdpPbgggggggggggbpdk",
+"....kdpPbggrrrrrrrggbpdk",
+"....kdpPbgrrrrrrrrrgbpdk",
+"....kdpPbbwgwgwgwgwbbpdk",
+"....kdpPPbbbbbbbbbbbPpdk",
+"....kdpPPPPPPPPPPPPPPpdk",
+"....kdpPPPPyyyyyyPPPPpdk",
+"....kdpPPPPyPPPPyPPPPpdk",
+"....kdpPPPPyyyyyyPPPPpdk",
+"....kdpPPPPPPPPPPPPPPpdk",
+".....kdddddddddddddddk..",
+".....kttttttttttttttkk..",
+"......kkkkkkkkkkkkkkk...",
+"........................",
+"........................"];
+const TOME_CAST=TOME_IDLE.map((row,i)=>(i>=7&&i<=10)?row.replace(/w/g,"r").replace(/b/g,"y"):row);
+const TOME_BLINK=TOME_IDLE.map((row,i)=>(i===7||i===10)?row.replace(/w/g,"P"):(i===8||i===9)?row.replace(/[wb]/g,"k"):row);
 const TOME_HIT=TOME_IDLE.map(row=>row.replace(/[pPdtgGby]/g,"w"));
-const TOME_DEAD=[
-"....................","....................","....................","....................","....................","....................","....................","....................","....................","....................",
-"kkkkkkkkkkkkkkkkkkkk","kdddddddddddddddddkk","kpPPPPPPPPPPPPPPPpdk","kpPwPwPPPPPPwPwPpdk.","kpPPwPPPPPPPPwPPpdk.","kpPwPwPPPPPPwPwPpdk.","kpPPPPPbbbbbPPPPpdk.","kpPPPPbPPPPPbPPPpdk.","kpPPPPPPPPPPPPPPpdk.","kttttttttttttttttkk.","kkkkkkkkkkkkkkkkkkk.","....................","....................","...................."];
+const TOME_DEAD=TOME_IDLE.map((row,i)=>i<12?"........................":row).map((row,i)=>(i>=14&&i<=18)?row.replace(/[grw]/g,"b"):row);
 // Hero: a decathlete with a backpack, 10x14
 const HERO=[
 "...hhhh...",
@@ -139,12 +144,17 @@ function loop(){
   c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,W,H);
   const sx=Scene.shake>0?(Math.random()-.5)*Scene.shake:0,sy=Scene.shake>0?(Math.random()-.5)*Scene.shake:0;if(Scene.shake>0)Scene.shake-=1;
   c.translate(sx,sy);
-  const g=c.createLinearGradient(0,0,0,H);g.addColorStop(0,"#0b0a1e");g.addColorStop(1,"#2a1a4a");c.fillStyle=g;c.fillRect(-20,-20,W+40,H+40);
-  Scene.stars.forEach(s=>{const a=.4+.6*Math.abs(Math.sin(Scene.t/40+s.tw));c.fillStyle=`rgba(255,240,200,${a})`;c.fillRect(Math.floor(s.x/3)*3,Math.floor(s.y/3)*3,3,3)});
-  c.fillStyle="#f1e9d2";c.fillRect(290,24,30,30);c.fillStyle="#d8ccaa";c.fillRect(300,30,8,8);c.fillRect(312,42,6,6);c.fillStyle="#0b0a1e";c.fillRect(284,24,12,30);
-  Scene.bld.forEach(b=>{c.fillStyle="#120c24";c.fillRect(b.x,H-30-b.h,b.w,b.h+30);c.fillStyle="#1c1236";c.fillRect(b.x,H-30-b.h,3,b.h+30);
-    for(let r=0;r<Math.floor(b.h/12);r++)for(let k=0;k<Math.floor(b.w/9);k++){const on=((r*7+k*3+b.win+Math.floor(Scene.t/90))%5)<2;c.fillStyle=on?"#ffb347":"#2a1a4a";c.fillRect(b.x+4+k*9,H-24-b.h+r*12,4,6)}});
-  c.fillStyle="#0e0b1a";c.fillRect(-20,H-30,W+40,50);
+  // JRPG battle backdrop: dusk sky band over a slice of the campus overworld
+  const g=c.createLinearGradient(0,0,0,70);g.addColorStop(0,"#1b1340");g.addColorStop(1,"#6b3a7a");c.fillStyle=g;c.fillRect(-20,-20,W+40,90);
+  Scene.stars.forEach(s=>{if(s.y>60)return;const a=.4+.6*Math.abs(Math.sin(Scene.t/40+s.tw));c.fillStyle=`rgba(255,240,200,${a})`;c.fillRect(Math.floor(s.x/3)*3,Math.floor(s.y/3)*3,3,3)});
+  c.fillStyle="#ffd9a0";c.fillRect(292,26,26,26);c.fillStyle="#e8b880";c.fillRect(300,32,8,8);
+  if(!Scene.bg){Scene.bg=document.createElement("canvas");Scene.bg.width=256;Scene.bg.height=224;drawCampus(Scene.bg.getContext("2d"),new Set(),0)}
+  c.save();c.imageSmoothingEnabled=false;
+  const vx=Scene.chapter&&CAMPUS.spots[Scene.chapterId]?CAMPUS.spots[Scene.chapterId].x:118,vy=Scene.chapter&&CAMPUS.spots[Scene.chapterId]?CAMPUS.spots[Scene.chapterId].y:118;
+  // perspective slices: draw rows of the map wider toward the bottom
+  for(let row=0;row<130;row+=2){const t=row/130;const scale=1.2+t*1.6;const srcW=W/scale,srcH=2/scale;c.drawImage(Scene.bg,Math.max(0,Math.min(256-srcW,vx-srcW/2)),Math.max(0,Math.min(224-srcH,vy-60+row/2.2)),srcW,srcH,-20,70+row,W+40,2.5)}
+  c.restore();
+  c.fillStyle="rgba(10,8,30,.35)";c.fillRect(-20,70,W+40,130);
   const fogN=Scene.chapter&&Scene.chapter.move==="fog"?10:4;
   for(let i=0;i<fogN;i++){c.fillStyle=`rgba(123,220,90,${.05+.03*i})`;const fx=(Scene.t*(0.3+i*0.2))%(W+120)-60;c.fillRect(fx,H-40-(i>3?i*8:0)+i*5,120,10)}
   // hero
@@ -158,17 +168,17 @@ function loop(){
   else{if(Scene.t%140<6)map=TOME_BLINK}
   if(!Scene.dead){c.fillStyle=`rgba(123,220,90,${.12+.06*Math.sin(Scene.t/10)})`;c.beginPath();c.ellipse(180,170,60,8,0,0,6.28);c.fill()}
   const mv=Scene.chapter&&!Scene.dead?Scene.chapter.move:null;
-  let tx=180-10*PX,ty=40+bob,sc=PX;
+  let tx=180-12*PX,ty=28+bob,sc=PX;
   c.save();
   if(mv==="slide")tx+=Math.sin(Scene.t/22)*45;
   if(mv==="grow"){const s=1+.12*Math.sin(Scene.t/16);c.translate(180,100);c.scale(s,s);c.translate(-180,-100)}
   if(mv==="shrink"){const s=.85+.1*Math.sin(Scene.t/12);c.translate(180,100);c.scale(s,s);c.translate(-180,-100)}
   if(mv==="spin"){c.translate(180,100);c.rotate(Math.sin(Scene.t/18)*.25);c.translate(-180,-100)}
   if(mv==="flicker"&&Math.random()<.08)c.globalAlpha=.35;
-  if(mv==="split"){const off=8+6*Math.sin(Scene.t/10);drawMap(c,map,tx-off,ty,sc,pal,0,10);drawMap(c,map,tx+off,ty,sc,pal,10,20);c.fillStyle="#ffb347";c.fillRect(178,ty+20,4,80)}
+  if(mv==="split"){const off=8+6*Math.sin(Scene.t/10);drawMap(c,map,tx-off,ty,sc,pal,0,12);drawMap(c,map,tx+off,ty,sc,pal,12,24);c.fillStyle="#ffb347";c.fillRect(178,ty+20,4,80)}
   else drawMap(c,map,tx,ty,sc,pal);
-  if(mv==="crack"){c.strokeStyle="#000";c.lineWidth=3;c.beginPath();c.moveTo(tx+10*PX,ty+6);for(let i=1;i<10;i++)c.lineTo(tx+10*PX+((i%2)?6:-6),ty+6+i*13);c.stroke()}
-  if(mv==="spin"){drawMap(c,HATMAPS.crown,tx+6*PX+4,ty-12,PX,PAL)}
+  if(mv==="crack"){c.strokeStyle="#000";c.lineWidth=3;c.beginPath();c.moveTo(tx+12*PX,ty+6);for(let i=1;i<12;i++)c.lineTo(tx+12*PX+((i%2)?6:-6),ty+6+i*13);c.stroke()}
+  if(mv==="spin"){drawMap(c,HATMAPS.crown,tx+8*PX+4,ty-12,PX,PAL)}
   c.restore();
   if(Scene.crit>0){c.fillStyle=`rgba(255,255,255,${Scene.crit/12})`;c.fillRect(-20,-20,W+40,H+40);Scene.crit--}
   Scene.parts=Scene.parts.filter(p=>p.l>0);Scene.parts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.25;p.l--;c.fillStyle=p.col;c.globalAlpha=Math.min(1,p.l/15);c.fillRect(Math.floor(p.x/3)*3,Math.floor(p.y/3)*3,4,4)});c.globalAlpha=1;
@@ -201,7 +211,7 @@ function rankFor(p){let r=RANKS[0][1];RANKS.forEach(([t,n])=>{if(p>=t)r=n});retu
 function hpBar(v,max,cls=""){const segs=10,on=Math.ceil(v/max*segs);let s='<div class="hpbar '+cls+'" role="img" aria-label="HP '+v+'">';for(let i=0;i<segs;i++)s+=`<i class="${i<on?(on<=3?"on low":"on"):""}"></i>`;return s+'</div>'}
 function heartsHTML(h){let s='<div class="hearts" aria-label="'+h+' lives">';for(let i=0;i<3;i++)s+=`<span class="heart ${i<h?"":"off"}"></span>`;return s+'</div>'}
 function sceneHTML(){return `<div class="scene"><canvas id="scene" width="360" height="200"></canvas><div class="scan"></div><div id="fx"></div><button class="mute" id="mute" aria-label="toggle sound">${S.muted?"🔇":"🔊"}</button></div>`}
-function mountScene(ch){const cv=$("#scene");if(cv)sceneInit(cv);Scene.chapter=ch||null;const m=$("#mute");if(m)m.onclick=()=>{S.muted=!S.muted;save("muted",S.muted);m.textContent=S.muted?"🔇":"🔊";if(!S.muted)SFX.click()}}
+function mountScene(ch){const cv=$("#scene");if(cv)sceneInit(cv);Scene.chapter=ch||null;Scene.chapterId=ch?Object.keys(CHAPTERS).find(k=>CHAPTERS[k]===ch):null;const m=$("#mute");if(m)m.onclick=()=>{S.muted=!S.muted;save("muted",S.muted);m.textContent=S.muted?"🔇":"🔊";if(!S.muted)SFX.click()}}
 function sessionWins(s){return S.wins[s]||0}
 function freed(s){return sessionWins(s)>=3}
 function checkEscape(){
@@ -364,24 +374,18 @@ function weekly(){
 
 // ---------- CAMPUS MAP ----------
 function campus(){
-  app.innerHTML=`<header class="title"><p class="eyebrow">Beat a chapter boss 3 times to free its location</p><h1>Campus Map</h1></header>
-  <div class="scene map"><canvas id="map" width="360" height="300"></canvas><div class="scan"></div></div>
-  <div class="locs">${Object.entries(CHAPTERS).map(([s,c])=>`<div class="loc ${freed(+s)?"free":""}"><span class="lk">${freed(+s)?"✅":"🔒"}</span><span class="ln">${esc(c.loc)}</span><span class="lb">${esc(c.name)} • ${Math.min(3,sessionWins(+s))}/3</span></div>`).join("")}</div>
-  <button class="ghost center" id="home"><span class="lbl">BACK TO CAMPUS</span></button>`;
+  app.innerHTML=`<header class="title"><p class="eyebrow">Beat a chapter boss 3 times to free its location</p><h1>Highland High</h1></header>
+  <div class="scene map"><canvas id="map" width="512" height="448"></canvas><div class="scan"></div></div>
+  <div class="win"><div class="locs">${Object.entries(CHAPTERS).map(([s,c])=>`<div class="loc ${freed(+s)?"free":""}"><span class="lk">${freed(+s)?"\u2605":"\u2620"}</span><span class="ln">${esc(c.loc)}</span><span class="lb">${esc(c.name)} \u2022 ${Math.min(3,sessionWins(+s))}/3</span></div>`).join("")}</div></div>
+  <button class="ghost center" id="home"><span class="lbl">BACK</span></button>`;
   $("#home").onclick=home;
-  const cv=$("#map"),c=cv.getContext("2d");const cells=[[20,40],[130,30],[250,40],[20,130],[130,120],[250,130],[70,215],[200,215]];
-  c.fillStyle="#1a2a1a";c.fillRect(0,0,360,300);
-  for(let i=0;i<360;i+=12)for(let j=0;j<300;j+=12){if((i+j)%48===0){c.fillStyle="#1f331f";c.fillRect(i,j,6,6)}}
-  c.fillStyle="#3a3a4a";c.fillRect(0,100,360,14);c.fillRect(0,195,360,14);c.fillRect(110,0,14,300);c.fillRect(230,0,14,300);
-  c.fillStyle="#ffb347";for(let i=4;i<360;i+=24){c.fillRect(i,106,10,2);c.fillRect(i,201,10,2)}for(let j=4;j<300;j+=24){c.fillRect(116,j,2,10);c.fillRect(236,j,2,10)}
-  Object.entries(CHAPTERS).forEach(([s,ch],i)=>{const [x,y]=cells[i];const f=freed(+s);
-    c.fillStyle=f?"#5a4a2a":"#2a1a3a";c.fillRect(x,y,80,50);c.fillStyle=f?"#8a6a3a":"#3a2a5a";c.fillRect(x,y-10,80,10);
-    for(let k=0;k<3;k++)for(let r=0;r<2;r++){c.fillStyle=f?"#ffe08a":"#7bdc5a";c.fillRect(x+10+k*24,y+10+r*20,12,10)}
-    if(!f){const pal=Object.assign({},PAL,ch.pal);drawMap(c,TOME_IDLE,x+50,y-30,2,pal);c.fillStyle="#ff5c5c";c.fillRect(x+2,y+2,8,8)}
-    else{drawMap(c,HERO,x+60,y+16,2)}
-    c.fillStyle="#fff";c.font="8px 'Press Start 2P',monospace";c.fillText(ch.loc.toUpperCase().slice(0,11),x,y+66)});
+  const cv=$("#map"),c=cv.getContext("2d");c.imageSmoothingEnabled=false;
+  const fs=new Set(Object.keys(CHAPTERS).map(Number).filter(freed));
+  (function draw(){if(!cv.isConnected)return;c.setTransform(2,0,0,2,0,0);drawCampus(c,fs,performance.now());
+    c.setTransform(1,0,0,1,0,0);c.font="8px 'Press Start 2P',monospace";c.textAlign="center";
+    Object.entries(CAMPUS.spots).forEach(([s,sp])=>{const lab=sp.label.toUpperCase();const w=c.measureText(lab).width+8;c.fillStyle="rgba(0,0,0,.6)";c.fillRect(sp.x*2-w/2,sp.y*2+6,w,12);c.fillStyle=fs.has(+s)?"#7bdc5a":"#fff";c.fillText(lab,sp.x*2,sp.y*2+15)});
+    requestAnimationFrame(draw)})();
 }
-
 // ---------- RIVAL ----------
 function rival(){
   app.innerHTML=`<header class="title"><p class="eyebrow">Fight the exact same quest as a friend</p><h1>Rival Mode</h1></header>

@@ -8,14 +8,18 @@ const RANKS=[[0,"Wee Scot"],[150,"Price Taker"],[400,"Price Maker"],[900,"Invisi
 const SESSIONS={1:"Fundamentals",2:"Demand & Supply",3:"Equilibrium & Surplus",4:"Elasticity",5:"Gov’t Policy",6:"Market Structures",7:"Market Failures",8:"GDP, Prices & Growth",9:"Gains from Trade",10:"Money & Fluctuations",11:"Transportation"};
 // Chapter bosses: one per session, with a palette swap and a signature move the scene renders.
 const CHAPTERS={
- 1:{name:"The Hoarder",move:"grow",pal:{P:"#8a5a2a",p:"#6a3f1a",d:"#3a200a"},loc:""},
- 2:{name:"The Shifter",move:"slide",pal:{P:"#2f6fb5",p:"#1f4f85",d:"#0f2a50"},loc:""},
- 3:{name:"Disequilibrium",move:"flicker",pal:{P:"#5a5a6a",p:"#3f3f4f",d:"#22222f"},loc:""},
- 4:{name:"Midpoint",move:"crack",pal:{P:"#b04a9a",p:"#80306c",d:"#48163c"},loc:""},
- 5:{name:"The Wedge",move:"split",pal:{P:"#c0392b",p:"#8a2418",d:"#4a100a"},loc:""},
- 6:{name:"The Monopolist",move:"spin",pal:{P:"#d4a017",p:"#9a7210",d:"#5a4208"},loc:""},
- 7:{name:"The Externality",move:"fog",pal:{P:"#2e8b57",p:"#1f5f3c",d:"#0f3320"},loc:""},
- 8:{name:"The Deflator",move:"shrink",pal:{P:"#4b2a7a",p:"#2d1650",d:"#1a0f2e"},loc:""}
+ 1:{name:"Scarcity",sprite:"scarcity",move:"grow",pal:{P:"#8a5a2a",p:"#6a3f1a",d:"#3a200a"},loc:""},
+ 2:{name:"The Shifter",sprite:"shifter",move:"slide",pal:{P:"#2f6fb5",p:"#1f4f85",d:"#0f2a50"},loc:""},
+ 3:{name:"Surplus & Shortage",sprite:"surplus",move:"flicker",pal:{P:"#5a5a6a",p:"#3f3f4f",d:"#22222f"},loc:""},
+ 4:{name:"Midpoint",sprite:"midpoint",move:"crack",pal:{P:"#b04a9a",p:"#80306c",d:"#48163c"},loc:""},
+ 5:{name:"The Wedge",sprite:"wedge",move:"split",pal:{P:"#c0392b",p:"#8a2418",d:"#4a100a"},loc:""},
+ 6:{name:"The Monopolist",sprite:"monopolist",move:"spin",pal:{P:"#d4a017",p:"#9a7210",d:"#5a4208"},loc:""},
+ 7:{name:"The Externality",sprite:"externality",move:"fog",pal:{P:"#2e8b57",p:"#1f5f3c",d:"#0f3320"},loc:""},
+ 8:{name:"The Deflator",sprite:"deflator",move:"shrink",pal:{P:"#4b2a7a",p:"#2d1650",d:"#1a0f2e"},loc:""},
+ 9:{name:"The Moocher",sprite:"moocher",move:"grow",pal:{P:"#7a7a2a",p:"#5a5a1a",d:"#3a3a0a"},loc:""},
+ 10:{name:"The Benchwarmer",sprite:"benchwarmer",move:"flicker",pal:{P:"#4a6a8a",p:"#2a4a6a",d:"#1a2a3a"},loc:""},
+ 11:{name:"The ASB Cashbox",sprite:"cashbox",move:"grow",pal:{P:"#6a7a6a",p:"#4a5a4a",d:"#2a3a2a"},loc:""},
+ 12:{name:"The Drop-Off Line",sprite:"dropoff",move:"slide",pal:{P:"#8a8a9a",p:"#5a5a6a",d:"#2a2a3a"},loc:""}
 };
 Object.keys(CHAPTERS).forEach(s=>{CHAPTERS[s].loc=(CAMPUS.spots[s]||{}).label||"Campus"});
 const LOOT=[
@@ -25,6 +29,7 @@ const LOOT=[
 ];
 const HATS={crown:"👑",wizard:"🧠",cap:"🧢",halo:"😇"};
 const ITEMS={skip:{n:"Skip",d:"Skip one question, no damage either way"},second:{n:"Second Chance",d:"Restore a heart once per fight"}};
+BANK.forEach(q=>{if(q.s===11)q.s=12;else if(q.s===10)q.s=11});
 const TAUGHT=8;let TOME_MAX=200;const WEEK_MAX=5000;
 
 // ---------- STATE ----------
@@ -173,6 +178,12 @@ function heroKey(){const k=load("hero","lad");return HEROES[k]?k:"lad"}
 function heroScale(){return HEROES[heroKey()].scale||1}
 const HATMAPS={crown:["y.y.y.y","yyyyyyy"],wizard:["...j...","..jjj..",".jjjjj.","jjjjjjj"],cap:["..rrrr.",".rrrrrr","rrrrrrrr"],halo:["yyyyyyy","y.....y"]};
 
+// ---------- IMAGE SPRITES (art/sprites/*.png, fallback to pixel grids) ----------
+const IMG={};const IMG_MISSING={};
+function spriteImg(key){if(IMG[key])return IMG[key].complete&&IMG[key].naturalWidth?IMG[key]:null;if(IMG_MISSING[key])return null;const im=new Image();im.onerror=()=>{IMG_MISSING[key]=true};im.src="art/sprites/"+key+".png";IMG[key]=im;return null}
+function drawSprite(c,key,cx,bottom,maxW,maxH,flip){const im=spriteImg(key);if(!im)return false;const s=Math.min(maxW/im.naturalWidth,maxH/im.naturalHeight);const w=im.naturalWidth*s,h=im.naturalHeight*s;c.save();c.imageSmoothingEnabled=false;if(flip){c.translate(cx,0);c.scale(-1,1);c.drawImage(im,-w/2,bottom-h,w,h)}else c.drawImage(im,cx-w/2,bottom-h,w,h);c.restore();return true}
+["lad","lass","scottie"].forEach(h=>["idle","attack","hit","win"].forEach(p=>spriteImg(h+"_"+p)));
+["tome","scarcity","shifter","surplus","midpoint","wedge","monopolist","externality","deflator","moocher","benchwarmer","cashbox","dropoff"].forEach(b=>["idle","cast","hit","dead"].forEach(p=>spriteImg(b+"_"+p)));
 const PX=6;
 const BOSS_VARIANTS={};
 function bossMaps(id){if(BOSS_VARIANTS[id])return BOSS_VARIANTS[id];const base=BOSS_SPRITES[id];if(!base)return null;
@@ -211,12 +222,13 @@ function loop(){
   // perspective slices: draw rows of the map wider toward the bottom
   for(let row=0;row<130;row+=2){const t=row/130;const scale=1.2+t*1.6;const srcW=W/scale,srcH=2/scale;c.drawImage(Scene.bg,Math.max(0,Math.min(256-srcW,vx-srcW/2)),Math.max(0,Math.min(224-srcH,vy-60+row/2.2)),srcW,srcH,-20,70+row,W+40,2.5)}
   c.restore();
-  c.fillStyle="rgba(13,26,58,.35)";c.fillRect(-20,70,W+40,130);
+  c.fillStyle="rgba(13,26,58,.55)";c.fillRect(-20,70,W+40,130);
   const fogN=Scene.chapter&&Scene.chapter.move==="fog"?10:4;
   for(let i=0;i<fogN;i++){c.fillStyle=`rgba(123,220,90,${.05+.03*i})`;const fx=(Scene.t*(0.3+i*0.2))%(W+120)-60;c.fillRect(fx,H-40-(i>3?i*8:0)+i*5,120,10)}
   // hero
-  {const hs=4*heroScale();drawMap(c,HERO,30,H-30-HERO.length*hs,hs)}
-  if(S.hat&&HATMAPS[S.hat]){const hm=HATMAPS[S.hat];const dog=heroKey()==="scottie";const hs=4*heroScale();const top=H-30-HERO.length*hs;drawMap(c,hm,dog?30+22*hs:30+(10-hm[0].length)*2,dog?top+1*hs-hm.length*4+(S.hat==="halo"?-10:2):top-hm.length*4+(S.hat==="halo"?-10:4),4)}
+  const heroPose=Scene.heroPose||"idle";
+  if(!drawSprite(c,heroKey()+"_"+heroPose,58,H-26,80,92)){const hs=4*heroScale();drawMap(c,HERO,30,H-30-HERO.length*hs,hs)}
+  if(S.hat&&HATMAPS[S.hat]&&!spriteImg(heroKey()+"_idle")){const hm=HATMAPS[S.hat];const dog=heroKey()==="scottie";const hs=4*heroScale();const top=H-30-HERO.length*hs;drawMap(c,hm,dog?30+22*hs:30+(10-hm[0].length)*2,dog?top+1*hs-hm.length*4+(S.hat==="halo"?-10:2):top-hm.length*4+(S.hat==="halo"?-10:4),4)}
   // tome
   const bm=Scene.chapterId?bossMaps(Scene.chapterId):null;
   const M=bm||{idle:TOME_IDLE,cast:TOME_CAST,blink:TOME_BLINK,hit:TOME_HIT,dead:TOME_DEAD};
@@ -228,6 +240,17 @@ function loop(){
   if(!Scene.dead){c.fillStyle=`rgba(123,220,90,${.12+.06*Math.sin(Scene.t/10)})`;c.beginPath();c.ellipse(180,170,60,8,0,0,6.28);c.fill()}
   const mv=Scene.chapter&&!Scene.dead?Scene.chapter.move:null;
   let tx=180-12*PX,ty=28+bob,sc=PX;
+  const bossKey=Scene.chapterId?CHAPTERS[Scene.chapterId].sprite:"tome";
+  const bossPose=Scene.dead?"dead":Scene.state==="hit"&&Scene.stateT<10?"hit":Scene.state==="cast"?"cast":"idle";
+  let bx=200;if(mv==="slide")bx+=Math.sin(Scene.t/22)*35;
+  const bossBob=Scene.dead?0:bob;
+  if(drawSprite(c,bossKey+"_"+bossPose,bx,H-22+bossBob*0.5,200,150,true)){
+    if(Scene.state==="hit"&&Scene.stateT<6){c.save();c.globalCompositeOperation="source-atop";c.fillStyle="rgba(255,255,255,.55)";c.fillRect(bx-110,0,220,H);c.restore()}
+    c.restore();
+    if(Scene.crit>0){c.fillStyle=`rgba(255,255,255,${Scene.crit/12})`;c.fillRect(-20,-20,W+40,H+40);Scene.crit--}
+    Scene.parts=Scene.parts.filter(p=>p.l>0);Scene.parts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.25;p.l--;c.fillStyle=p.col;c.globalAlpha=Math.min(1,p.l/15);c.fillRect(Math.floor(p.x/3)*3,Math.floor(p.y/3)*3,4,4)});c.globalAlpha=1;
+    return;
+  }
   c.save();
   if(mv==="slide")tx+=Math.sin(Scene.t/22)*45;
   if(mv==="grow"){const s=1+.12*Math.sin(Scene.t/16);c.translate(180,100);c.scale(s,s);c.translate(-180,-100)}
@@ -270,7 +293,7 @@ function rankFor(p){let r=RANKS[0][1];RANKS.forEach(([t,n])=>{if(p>=t)r=n});retu
 function hpBar(v,max,cls=""){const segs=10,on=Math.ceil(v/max*segs);let s='<div class="hpbar '+cls+'" role="img" aria-label="HP '+v+'">';for(let i=0;i<segs;i++)s+=`<i class="${i<on?(on<=3?"on low":"on"):""}"></i>`;return s+'</div>'}
 function heartsHTML(h){let s='<div class="hearts" aria-label="'+h+' lives">';for(let i=0;i<3;i++)s+=`<span class="heart ${i<h?"":"off"}"></span>`;return s+'</div>'}
 function sceneHTML(){return `<div class="scene"><canvas id="scene" width="360" height="200"></canvas><div class="scan"></div><div id="fx"></div>${(!S.muted&&!Music.current()&&!pendingTrackShown())?`<div class="sndHint" id="sndHint">\ud83c\udfb5 tap anywhere for music</div>`:""}<button class="mute" id="mute" aria-label="toggle sound">${S.muted?"🔇":"🔊"}</button></div>`}
-function mountScene(ch){const cv=$("#scene");if(cv)sceneInit(cv);Scene.chapter=ch||null;Scene.chapterId=ch?Object.keys(CHAPTERS).find(k=>CHAPTERS[k]===ch):null;const m=$("#mute");if(m)m.onclick=()=>{S.muted=!S.muted;save("muted",S.muted);m.textContent=S.muted?"🔇":"🔊";if(!S.muted)SFX.click()}}
+function mountScene(ch){const cv=$("#scene");if(cv)sceneInit(cv);Scene.heroPose="idle";Scene.chapter=ch||null;Scene.chapterId=ch?Object.keys(CHAPTERS).find(k=>CHAPTERS[k]===ch):null;const m=$("#mute");if(m)m.onclick=()=>{S.muted=!S.muted;save("muted",S.muted);m.textContent=S.muted?"🔇":"🔊";if(!S.muted)SFX.click()}}
 function sessionWins(s){return S.wins[s]||0}
 function freed(s){return sessionWins(s)>=3}
 function checkEscape(){
@@ -366,13 +389,13 @@ function answer(v){
     G.combo++;G.best=Math.max(G.best,G.combo);crit=secs<3;
     const speed=crit?2.0:secs<8?1.3:1.0,base=isBoss?35:20;
     dealt=Math.round(base*speed*(1+0.1*(G.combo-1)));
-    S.seen=S.seen||{};S.seen[q.id]=(S.seen[q.id]||0)+1;save("seen",S.seen);G.tome=Math.max(isBoss?0:1,G.tome-dealt);G.dmg+=dealt;G.log.push("🟩");sceneSet("hit");burst(crit?50:24,crit?"#ffffff":"#ffb347");
+    S.seen=S.seen||{};S.seen[q.id]=(S.seen[q.id]||0)+1;save("seen",S.seen);G.tome=Math.max(isBoss?0:1,G.tome-dealt);G.dmg+=dealt;G.log.push("🟩");sceneSet("hit");Scene.heroPose="attack";setTimeout(()=>{if(Scene.heroPose==="attack")Scene.heroPose="idle"},700);burst(crit?50:24,crit?"#ffffff":"#ffb347");
     if(crit){G.crits++;Scene.crit=12;Scene.shake=18;fx("CRITICAL −"+dealt,"crit");SFX.crit()}else{fx("−"+dealt,"hit");SFX.hit()}
     taunt=SULK[Math.floor(Math.random()*SULK.length)];
     if(G.tome<=0){setTimeout(()=>{sceneSet("dead");burst(60,"#7bdc5a");SFX.death()},300)}
   }else{
     const broke=G.combo>1;G.combo=0;G.hearts--;G.log.push("🟥");const heal=isBoss?15:8;G.tome=Math.min(TOME_MAX,G.tome+heal);
-    S.missed[q.id]=(S.missed[q.id]||0)+1;save("missed",S.missed);S.seen=S.seen||{};S.seen[q.id]=(S.seen[q.id]||0)+1;save("seen",S.seen);sceneSet("cast");burst(14,"#ff5c5c");fx("+"+heal,"heal");SFX.miss();if(broke){setTimeout(SFX.combo,250);fx("COMBO BROKEN","broke")}
+    S.missed[q.id]=(S.missed[q.id]||0)+1;save("missed",S.missed);S.seen=S.seen||{};S.seen[q.id]=(S.seen[q.id]||0)+1;save("seen",S.seen);sceneSet("cast");Scene.heroPose="hit";setTimeout(()=>{if(Scene.heroPose==="hit")Scene.heroPose="idle"},900);burst(14,"#ff5c5c");fx("+"+heal,"heal");SFX.miss();if(broke){setTimeout(SFX.combo,250);fx("COMBO BROKEN","broke")}
     document.body.classList.add("flash");setTimeout(()=>document.body.classList.remove("flash"),400);
     const hd=document.querySelector(".hearts");if(hd)hd.outerHTML=heartsHTML(G.hearts);
     const pg=(q.src||"").match(/p\.([\d;, ]+)/);
@@ -422,7 +445,7 @@ function result(){
   ${G.log.includes("🟥")?`<div class="card"><p class="eyebrow">The Tome beat you on</p>${[...G.qs,G.boss].filter((q,k)=>G.log[k]==="🟥").map(q=>`<p class="miss"><b>${esc(q.term||q.spell)}</b> <span class="muted small">${esc(SESSIONS[q.s])}</span></p>`).join("")}<p class="muted small">These show up more often next time.</p></div>`:""}
   <button class="ghost center" id="again"><span class="lbl">${G.practice?"FIGHT AGAIN":"PRACTICE FIGHT"}</span></button>
   <button class="ghost center" id="home"><span class="lbl">BACK TO CAMPUS</span></button>`;
-  mountScene(G.chapter);Scene.dead=won;if(!won)sceneSet("cast");
+  mountScene(G.chapter);Scene.dead=won;Scene.heroPose=won?"win":"hit";if(!won)sceneSet("cast");
   if(!S.muted){Music.stop();setTimeout(()=>{Music.play(won?"victory":"defeat",{then:()=>{if(loot)Music.sfx("loot");setTimeout(()=>{if(!G||document.querySelector("#copy"))Music.play("overworld")},loot?900:200)}})},won?400:200)}
   $("#copy").onclick=()=>{const txt=$("#card").textContent;const fb=()=>{const r=document.createRange();r.selectNodeContents($("#card"));const s=getSelection();s.removeAllRanges();s.addRange(r);toast("Select & copy")};try{navigator.clipboard.writeText(txt).then(()=>toast("Copied!")).catch(fb)}catch(e){fb()}};
   $("#again").onclick=()=>start({practice:true});$("#home").onclick=home;
@@ -436,7 +459,7 @@ function pickHero(){
   <div class="heroes">${Object.entries(HEROES).map(([k,h])=>`<button class="ghost heroBtn ${heroKey()===k?"on":""}" data-h="${k}"><canvas width="120" height="80" data-c="${k}"></canvas><span class="lbl">${esc(h.name).toUpperCase()}</span></button>`).join("")}</div>
   <p class="muted small" style="text-align:center">You can change this later in the Bag.</p>
   <button class="big center" id="go"><span class="lbl">▶ ONWARD</span></button>`;
-  document.querySelectorAll("canvas[data-c]").forEach(cv=>{const c=cv.getContext("2d");c.imageSmoothingEnabled=false;{const h=HEROES[cv.dataset.c];const m=h.map;const s=Math.floor(Math.min(110/m[0].length,74/m.length));drawMap(c,m,(120-m[0].length*s)/2,(80-m.length*s)/2,s)}});
+  document.querySelectorAll("canvas[data-c]").forEach(cv=>{const c=cv.getContext("2d");c.imageSmoothingEnabled=false;const draw=()=>{c.clearRect(0,0,120,80);if(!drawSprite(c,cv.dataset.c+"_idle",60,78,110,76)){const h=HEROES[cv.dataset.c];const m=h.map;const s=Math.floor(Math.min(110/m[0].length,74/m.length));drawMap(c,m,(120-m[0].length*s)/2,(80-m.length*s)/2,s)}};draw();setTimeout(draw,400);setTimeout(draw,1200)});
   document.querySelectorAll(".heroBtn").forEach(b=>b.onclick=()=>{setHero(b.dataset.h);SFX.click();document.querySelectorAll(".heroBtn").forEach(x=>x.classList.toggle("on",x===b))});
   $("#go").onclick=()=>{if(!load("hero",null))setHero("lad");SFX.loot();home()};
 }
@@ -479,9 +502,9 @@ function story(){
   const pages=[
     {t:"Chapter 0: The Tome",b:"Every fall the Highland Academic Decathlon team receives one copy of the USAD Economics Resource Guide. This year's copy arrived early, unmarked, and already warm.<br><br>By Monday it had read itself. By Tuesday it had opinions."},
     {t:"Possession",b:"The Tome knows every curve, every elasticity, every tax wedge in the book, and it has decided the campus is a market it would like to corner.<br><br>It shifted the snack bar's supply curve left. It priced the parking lot like a monopolist. It put a ceiling on the water fountains and a floor on the vending machines. The Quad is in disequilibrium."},
-    {t:"The Chapters Break Loose",b:"Eight chapters tore free and took up residence around the school, each with its favorite trap:<br><br><b>The Hoarder</b> at the Snack Bar forgets forgone income. <b>The Shifter</b> on the Quad calls every movement a shift. <b>Disequilibrium</b> haunts the Gym. <b>Midpoint</b> cracks the Library by dividing by the starting value. <b>The Wedge</b> splits the Front Office. <b>The Monopolist</b> rules the Parking Lot. <b>The Externality</b> fogs the Bus Loop. <b>The Deflator</b> shrinks the Ball Fields."},
+    {t:"The Chapters Break Loose",b:"Twelve chapters tore free and took up residence around the school, each with its favorite trap:<br><br><b>Scarcity</b> emptied the Snack Bar. <b>The Shifter</b> calls every movement on the Quad a shift. <b>Surplus & Shortage</b> fight over a price line in the Gym. <b>Midpoint</b> cracked the Library by dividing by the starting value. <b>The Wedge</b> split the Front Office. <b>The Monopolist</b> runs the only bus in the Parking Lot. <b>The Externality</b> fogs the Bus Loop. <b>The Deflator</b> leaks on the Ball Fields. <b>The Moocher</b> took the group grade in the Art Room. <b>The Benchwarmer</b> sits on the Bleachers. <b>The ASB Cashbox</b> prints Scot Bucks in the Student Store. <b>The Drop-Off Line</b> owns Charger Ave."},
     {t:"Why You",b:"Only a Scot who knows the material can hurt it. A correct answer lands as a hit. A fast correct answer lands as a critical. A wrong answer feeds it, because a wrong answer is exactly what it wants you to carry into the exam in February.<br><br>The Tome is not afraid of you yet. That is the point of the daily quest."},
-    {t:"How to Win",b:"<b>Daily Quest</b>: five questions and a chapter boss, same for everyone, new each day. Keep the streak or the Tome runs off with it.<br><b>Weekly Boss</b>: the whole team pools damage into one bar. Every fight counts.<br><b>Campus Map</b>: beat a chapter three times to free its location.<br><b>Rival</b>: paste a teammate's code to fight their exact quest.<br><br>Free all eight locations and the Tome goes back to being a book. Then we take the real test."}
+    {t:"How to Win",b:"<b>Daily Quest</b>: five questions and a chapter boss, same for everyone, new each day. Keep the streak or the Tome runs off with it.<br><b>Weekly Boss</b>: the whole team pools damage into one bar. Every fight counts.<br><b>Campus Map</b>: beat a chapter three times to free its location.<br><b>Rival</b>: paste a teammate's code to fight their exact quest.<br><br>Free all twelve locations and the Tome goes back to being a book. Then we take the real test."}
   ];
   let i=0;
   const render=()=>{wantTrack("overworld");const p=pages[i];

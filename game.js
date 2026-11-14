@@ -30,9 +30,9 @@ const TAUGHT=8;let TOME_MAX=200;const WEEK_MAX=5000;
 // ---------- STATE ----------
 function load(k,d){try{const v=localStorage.getItem("econ."+k);return v==null?d:JSON.parse(v)}catch(e){return d}}
 function save(k,v){try{localStorage.setItem("econ."+k,JSON.stringify(v))}catch(e){}}
-let S={streak:load("streak",0),lastDay:load("lastDay",null),best:load("best",{}),missed:load("missed",{}),totalDmg:load("totalDmg",0),team:load("team",""),name:load("name",""),
+let S={seen:load("seen",{}),streak:load("streak",0),lastDay:load("lastDay",null),best:load("best",{}),missed:load("missed",{}),totalDmg:load("totalDmg",0),team:load("team",""),name:load("name",""),
   wins:load("wins",{}),titles:load("titles",[]),hats:load("hats",[]),hat:load("hat",""),title:load("title",""),items:load("items",{skip:0,second:0}),escaped:load("escaped",null),recapture:load("recapture",0),muted:load("muted",false),weekLocal:load("weekLocal",{})};
-function saveAll(){for(const k of ["streak","lastDay","best","missed","totalDmg","team","name","wins","titles","hats","hat","title","items","escaped","recapture","muted","weekLocal"])save(k,S[k])}
+function saveAll(){for(const k of ["seen","streak","lastDay","best","missed","totalDmg","team","name","wins","titles","hats","hat","title","items","escaped","recapture","muted","weekLocal"])save(k,S[k])}
 
 function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 function dayKey(d=new Date()){return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate()}
@@ -244,7 +244,7 @@ async function postDamage(dmg){
   const wk=weekId();S.weekLocal[wk]=(S.weekLocal[wk]||0)+dmg;save("weekLocal",S.weekLocal);
   if(!dbReady)return;
   try{const ref=DB.doc("hits/"+UID);const snap=await ref.get();const cur=snap.exists?snap.data():{};const weeks=Object.assign({},cur.weeks||{});weeks[wk]=(weeks[wk]||0)+dmg;
-    await ref.set({name:S.name||"Anonymous",team:S.team||"",weeks,hat:S.hat||"",hero:heroKey(),title:S.title||"",updated:Date.now()})}catch(e){}
+    await ref.set({name:S.name||"Anonymous",team:S.team||"",weeks,hat:S.hat||"",hero:heroKey(),title:S.title||"",updated:Date.now(),streak:S.streak,missed:Object.fromEntries(Object.entries(S.missed).sort((a,b)=>b[1]-a[1]).slice(0,40)),seen:Object.fromEntries(Object.entries(S.seen||{}).sort((a,b)=>b[1]-a[1]).slice(0,80))})}catch(e){}
 }
 function weeklyTotals(){const wk=weekId();if(dbReady){const rows=roster.map(r=>({name:r.name||"Someone",dmg:(r.weeks||{})[wk]||0,hat:r.hat||"",hero:r.hero||"",me:r.id===UID})).filter(r=>r.dmg>0).sort((a,b)=>b.dmg-a.dmg);return {rows,total:rows.reduce((a,r)=>a+r.dmg,0)}}
   const me=S.weekLocal[wk]||0;return {rows:me?[{name:S.name||"You",dmg:me,hat:S.hat,hero:heroKey(),me:true}]:[],total:me}}
@@ -290,10 +290,12 @@ function home(){
   <div class="two"><button class="ghost center" id="startPractice"><span class="lbl">PRACTICE</span></button><button class="ghost center" id="bagBtn"><span class="lbl">BAG (${(S.items.skip||0)+(S.items.second||0)})</span></button></div>
   <div class="field"><label class="eyebrow" for="pname">Your name (shows on the team roster)</label><input type="text" id="pname" value="${esc(S.name)}" placeholder="First name" maxlength="20"></div>
   <div class="field"><label class="eyebrow" for="team">Team code (prefixes share cards)</label><input type="text" id="team" value="${esc(S.team)}" placeholder="HHS-ECON" maxlength="16"></div>
+  <button class="ghost center" id="coachBtn"><span class="lbl">COACH MODE</span></button>
   <p class="footer">Questions from DemiDec Section Exams 1–3 and the session case studies.</p>`;
   mountScene(null);attract();wantTrack("overworld");
   $("#startDaily").onclick=()=>{SFX.click();start({practice:false})};$("#startPractice").onclick=()=>{SFX.click();start({practice:true})};
   $("#weeklyBtn").onclick=()=>{SFX.click();weekly()};$("#storyBtn").onclick=()=>{SFX.click();story()};$("#mapBtn").onclick=()=>{SFX.click();campus()};$("#rivalBtn").onclick=()=>{SFX.click();rival()};$("#bagBtn").onclick=()=>{SFX.click();bag()};
+  $("#coachBtn").onclick=()=>{SFX.click();coach()};
   $("#pname").oninput=e=>{S.name=e.target.value.trim();save("name",S.name)};
   $("#team").oninput=e=>{S.team=e.target.value.trim();save("team",S.team)};
 }
@@ -353,13 +355,13 @@ function answer(v){
     G.combo++;G.best=Math.max(G.best,G.combo);crit=secs<3;
     const speed=crit?2.0:secs<8?1.3:1.0,base=isBoss?35:20;
     dealt=Math.round(base*speed*(1+0.1*(G.combo-1)));
-    G.tome=Math.max(isBoss?0:1,G.tome-dealt);G.dmg+=dealt;G.log.push("🟩");sceneSet("hit");burst(crit?50:24,crit?"#ffffff":"#ffb347");
+    S.seen=S.seen||{};S.seen[q.id]=(S.seen[q.id]||0)+1;save("seen",S.seen);G.tome=Math.max(isBoss?0:1,G.tome-dealt);G.dmg+=dealt;G.log.push("🟩");sceneSet("hit");burst(crit?50:24,crit?"#ffffff":"#ffb347");
     if(crit){G.crits++;Scene.crit=12;Scene.shake=18;fx("CRITICAL −"+dealt,"crit");SFX.crit()}else{fx("−"+dealt,"hit");SFX.hit()}
     taunt=SULK[Math.floor(Math.random()*SULK.length)];
     if(G.tome<=0){setTimeout(()=>{sceneSet("dead");burst(60,"#7bdc5a");SFX.death()},300)}
   }else{
     const broke=G.combo>1;G.combo=0;G.hearts--;G.log.push("🟥");const heal=isBoss?15:8;G.tome=Math.min(TOME_MAX,G.tome+heal);
-    S.missed[q.id]=(S.missed[q.id]||0)+1;save("missed",S.missed);sceneSet("cast");burst(14,"#ff5c5c");fx("+"+heal,"heal");SFX.miss();if(broke){setTimeout(SFX.combo,250);fx("COMBO BROKEN","broke")}
+    S.missed[q.id]=(S.missed[q.id]||0)+1;save("missed",S.missed);S.seen=S.seen||{};S.seen[q.id]=(S.seen[q.id]||0)+1;save("seen",S.seen);sceneSet("cast");burst(14,"#ff5c5c");fx("+"+heal,"heal");SFX.miss();if(broke){setTimeout(SFX.combo,250);fx("COMBO BROKEN","broke")}
     document.body.classList.add("flash");setTimeout(()=>document.body.classList.remove("flash"),400);
     const hd=document.querySelector(".hearts");if(hd)hd.outerHTML=heartsHTML(G.hearts);
     const pg=(q.src||"").match(/p\.([\d;, ]+)/);
@@ -426,6 +428,39 @@ function pickHero(){
   document.querySelectorAll("canvas[data-c]").forEach(cv=>{const c=cv.getContext("2d");c.imageSmoothingEnabled=false;drawMap(c,HEROES[cv.dataset.c].map,0,0,6)});
   document.querySelectorAll(".heroBtn").forEach(b=>b.onclick=()=>{setHero(b.dataset.h);SFX.click();document.querySelectorAll(".heroBtn").forEach(x=>x.classList.toggle("on",x===b))});
   $("#go").onclick=()=>{if(!load("hero",null))setHero("lad");SFX.loot();home()};
+}
+
+// ---------- COACH MODE ----------
+function teamRows(){
+  if(dbReady&&roster.length)return roster.map(r=>({name:r.name||"Someone",hero:r.hero||"",streak:r.streak||0,updated:r.updated||0,missed:r.missed||{},seen:r.seen||{},weeks:r.weeks||{}}));
+  const imported=load("coachImports",[]);
+  const me={name:(S.name||"You")+" (this phone)",hero:heroKey(),streak:S.streak,updated:Date.now(),missed:S.missed,seen:S.seen||{},weeks:S.weekLocal};
+  return [me,...imported];
+}
+function exportCode(){const d={n:S.name||"anon",h:heroKey(),s:S.streak,m:Object.fromEntries(Object.entries(S.missed).sort((a,b)=>b[1]-a[1]).slice(0,40)),e:Object.fromEntries(Object.entries(S.seen||{}).slice(0,80)),w:S.weekLocal,t:Date.now()};return "EMC1."+btoa(unescape(encodeURIComponent(JSON.stringify(d)))).replace(/=+$/,"")}
+function importCode(code){const m=code.trim().match(/^EMC1\.([A-Za-z0-9+/]+)$/);if(!m)return null;try{const d=JSON.parse(decodeURIComponent(escape(atob(m[1]))));return {name:d.n,hero:d.h,streak:d.s,missed:d.m||{},seen:d.e||{},weeks:d.w||{},updated:d.t||Date.now()}}catch(e){return null}}
+function coach(){
+  wantTrack("overworld");
+  const rows=teamRows();const byId=Object.fromEntries(BANK.map(q=>[q.id,q]));BOSSES.forEach(b=>byId[b.id]=b);
+  // aggregate misses by question and by session
+  const missQ={},seenQ={},sessMiss={},sessSeen={};
+  rows.forEach(r=>{Object.entries(r.missed).forEach(([id,n])=>{missQ[id]=(missQ[id]||0)+n;const q=byId[id];if(q){sessMiss[q.s]=(sessMiss[q.s]||0)+n}});Object.entries(r.seen).forEach(([id,n])=>{seenQ[id]=(seenQ[id]||0)+n;const q=byId[id];if(q){sessSeen[q.s]=(sessSeen[q.s]||0)+n}})});
+  const top=Object.entries(missQ).sort((a,b)=>b[1]-a[1]).slice(0,12).map(([id,n])=>({q:byId[id],n,rate:seenQ[id]?Math.round(n/seenQ[id]*100):100})).filter(x=>x.q);
+  const sess=Object.keys(SESSIONS).filter(s=>+s<=TAUGHT).map(s=>({s:+s,name:SESSIONS[s],seen:sessSeen[s]||0,miss:sessMiss[s]||0,acc:sessSeen[s]?Math.round((1-(sessMiss[s]||0)/sessSeen[s])*100):null}));
+  const wk=weekId();const now=Date.now();
+  const people=rows.map(r=>({...r,wkDmg:r.weeks[wk]||0,days:Math.floor((now-r.updated)/86400000)})).sort((a,b)=>b.wkDmg-a.wkDmg);
+  const label=q=>{const t=q.term||q.spell||"";const pg=(q.src||"").match(/RG p\.([\d;, ]+)/);if(SESSIONS[q.s]===t)return "RG p."+(pg?pg[1].trim():"?");return t};
+  const review=top.slice(0,6).map(x=>label(x.q)+(x.q.src?" ("+x.q.src.replace(/DemiDec /,"")+")":"")).join("\n");
+  app.innerHTML=`<header class="title"><p class="eyebrow">Coach mode • ${dbReady?"team pooled":"this phone"+(load("coachImports",[]).length?" + "+load("coachImports",[]).length+" imported":"")}</p><h1>Where the Tome<br>is winning</h1><div class="tartan" aria-hidden="true"></div></header>
+  <div class="card"><p class="eyebrow">Today’s review list</p>${top.length?`<ol class="review">${top.slice(0,6).map(x=>`<li><b>${esc(x.q.term||x.q.spell)}</b> <span class="muted small">${esc(SESSIONS[x.q.s])} • missed ${x.n}× • ${x.rate}% miss rate</span><div class="small">${esc(x.q.q)}</div></li>`).join("")}</ol><button class="big center" id="copyReview"><span class="lbl">COPY REVIEW LIST</span></button>`:"<p class='muted'>No misses logged yet. Play a quest or import a student code below.</p>"}</div>
+  <div class="card"><p class="eyebrow">Accuracy by session</p>${sess.map(x=>`<div class="srow"><span class="sn">${x.s}. ${esc(x.name)}</span><div class="sbar"><i style="width:${x.acc==null?0:x.acc}%" class="${x.acc!=null&&x.acc<70?"low":""}"></i></div><span class="sv">${x.acc==null?"—":x.acc+"%"}<small> ${x.seen}</small></span></div>`).join("")}<p class="muted small">Bar = correct rate. Small number = attempts.</p></div>
+  <div class="card"><p class="eyebrow">Roster • week of ${wk.slice(4,6)}/${wk.slice(6)}</p>${people.map(p=>`<div class="rrow"><span class="pos">${p.days>2?"💤":"⚔️"}</span><span class="rn">${HEROES[p.hero]?HEROES[p.hero].icon+" ":""}${esc(p.name)} <small class="muted">🔥${p.streak}${p.days>0?" • "+p.days+"d ago":""}</small></span><span class="rd">${p.wkDmg.toLocaleString()}</span></div>`).join("")}<p class="muted small">💤 = no fight in 3+ days.</p></div>
+  ${dbReady?"":`<div class="card"><p class="eyebrow">Pool without Firebase</p><p class="small">Students tap <b>Bag → Copy my coach code</b> and send it to you. Paste codes here.</p><input type="text" id="imp" placeholder="EMC1...." autocapitalize="off"><div class="two"><button class="ghost center" id="impBtn"><span class="lbl">IMPORT</span></button><button class="ghost center" id="impClear"><span class="lbl">CLEAR IMPORTS</span></button></div><p class="muted small" id="impMsg"></p></div>`}
+  <button class="ghost center" id="home"><span class="lbl">BACK</span></button>`;
+  $("#home").onclick=home;
+  const cr=$("#copyReview");if(cr)cr.onclick=()=>{const txt="Econ review — "+new Date().toLocaleDateString()+"\n"+review;try{navigator.clipboard.writeText(txt).then(()=>toast("Copied")).catch(()=>toast("Copy failed"))}catch(e){toast("Copy failed")}};
+  const ib=$("#impBtn");if(ib)ib.onclick=()=>{const r=importCode($("#imp").value);if(!r){$("#impMsg").textContent="That code did not parse.";return}const arr=load("coachImports",[]).filter(x=>x.name!==r.name);arr.push(r);save("coachImports",arr);SFX.loot();coach()};
+  const ic=$("#impClear");if(ic)ic.onclick=()=>{save("coachImports",[]);coach()};
 }
 // ---------- STORY ----------
 function story(){
@@ -513,8 +548,10 @@ function bag(){wantTrack("overworld");
   <div class="card"><p class="eyebrow">Hero</p><div class="chips">${Object.entries(HEROES).map(([k,h])=>`<button class="chip ${heroKey()===k?"on":""}" data-hero="${k}">${h.icon} ${esc(h.name)}</button>`).join("")}</div></div>
   <div class="card"><p class="eyebrow">Hats</p>${S.hats.length?`<div class="chips">${S.hats.map(h=>`<button class="chip ${S.hat===h?"on":""}" data-h="${h}">${HATS[h]} ${h}</button>`).join("")}<button class="chip ${S.hat?"":"on"}" data-h="">none</button></div>`:"<p class='muted'>None yet.</p>"}</div>
   <div class="card"><p class="eyebrow">Titles</p>${S.titles.length?`<div class="chips">${S.titles.map(t=>`<button class="chip ${S.title===t?"on":""}" data-t="${esc(t)}">${esc(t)}</button>`).join("")}</div>`:"<p class='muted'>None yet.</p>"}</div>
+  <div class="card"><p class="eyebrow">For your coach</p><button class="ghost center" id="coachCode"><span class="lbl">COPY MY COACH CODE</span></button><p class="muted small">Sends your misses and streak, nothing else.</p></div>
   <button class="ghost center" id="home"><span class="lbl">BACK TO CAMPUS</span></button>`;
   $("#home").onclick=home;
+  $("#coachCode").onclick=()=>{const c=exportCode();try{navigator.clipboard.writeText(c).then(()=>toast("Copied")).catch(()=>toast("Copy failed"))}catch(e){toast("Copy failed")}};
   document.querySelectorAll("[data-h]").forEach(b=>b.onclick=()=>{S.hat=b.dataset.h;save("hat",S.hat);SFX.click();bag()});
   document.querySelectorAll("[data-hero]").forEach(b=>b.onclick=()=>{setHero(b.dataset.hero);SFX.click();bag()});
   document.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{S.title=b.dataset.t;save("title",S.title);SFX.click();bag()});

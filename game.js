@@ -63,20 +63,15 @@ function buildQuest(seed,n){
   return {qs:picked,boss:bosses[Math.floor(rnd()*bosses.length)],seed};
 }
 
-// ---------- SOUND (synth, no files) ----------
-let AC=null;
-function ac(){if(S.muted)return null;try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();if(AC.state==="suspended")AC.resume()}catch(e){return null}return AC}
-function tone(f,t0,dur,type="square",vol=.12,slide=0){const c=ac();if(!c)return;const o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.setValueAtTime(f,c.currentTime+t0);if(slide)o.frequency.exponentialRampToValueAtTime(Math.max(30,f+slide),c.currentTime+t0+dur);g.gain.setValueAtTime(vol,c.currentTime+t0);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+t0+dur);o.connect(g);g.connect(c.destination);o.start(c.currentTime+t0);o.stop(c.currentTime+t0+dur+.02)}
-const SFX={
- hit:()=>{tone(440,0,.08);tone(660,.06,.1)},
- crit:()=>{tone(523,0,.07);tone(784,.07,.07);tone(1047,.14,.18,"square",.14)},
- miss:()=>{tone(220,0,.18,"sawtooth",.1,-120);tone(110,.12,.3,"sawtooth",.08,-60)},
- death:()=>{[0,.15,.3,.45].forEach((t,i)=>tone(400-i*80,t,.25,"sawtooth",.12,-150))},
- combo:()=>{tone(200,0,.25,"triangle",.1,-150)},
- loot:()=>{[523,659,784,1047].forEach((f,i)=>tone(f,i*.09,.12,"triangle",.1))},
- click:()=>tone(880,0,.03,"square",.05)
-};
-
+// ---------- SOUND ----------
+Music.setMuted(S.muted);
+const SFX=new Proxy({},{get:(_,k)=>()=>Music.sfx(k)});
+function tone(f,t0,dur){Music.sfx("tick")}
+function playTrack(n){if(S.muted)return;Music.play(n)}
+// Browsers require a gesture before audio: unlock on first tap and start the pending track.
+let pendingTrack=null,_hintShown=false;function pendingTrackShown(){if(_hintShown)return true;_hintShown=true;return false}
+document.addEventListener("pointerdown",()=>{const hint=document.getElementById("sndHint");if(hint)hint.remove();Music.unlock();if(pendingTrack&&!S.muted){const t=pendingTrack;pendingTrack=null;Music.play(t)}},{passive:true});
+function wantTrack(n){if(S.muted)return;if(Music.current()===n)return;if(Music.unlock()&&Music.unlock().state==="running")Music.play(n);else pendingTrack=n}
 // ---------- PIXEL RENDERER ----------
 const PAL=Object.assign({".":null,G:"#b8ff9c",k:"#1a0f2e",p:"#4b2a7a",P:"#6a3fa8",d:"#2d1650",w:"#ffffff",b:"#111111",g:"#4ba65a",G:"#b8ff9c",y:"#ffb347",r:"#ff5c5c",t:"#e8d8b0",s:"#f0c9a0",h:"#3a2a1a",j:"#2d4f9d",o:"#e0a060"},BPAL);
 const TOME_IDLE=[
@@ -228,7 +223,7 @@ function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;","
 function rankFor(p){let r=RANKS[0][1];RANKS.forEach(([t,n])=>{if(p>=t)r=n});return r}
 function hpBar(v,max,cls=""){const segs=10,on=Math.ceil(v/max*segs);let s='<div class="hpbar '+cls+'" role="img" aria-label="HP '+v+'">';for(let i=0;i<segs;i++)s+=`<i class="${i<on?(on<=3?"on low":"on"):""}"></i>`;return s+'</div>'}
 function heartsHTML(h){let s='<div class="hearts" aria-label="'+h+' lives">';for(let i=0;i<3;i++)s+=`<span class="heart ${i<h?"":"off"}"></span>`;return s+'</div>'}
-function sceneHTML(){return `<div class="scene"><canvas id="scene" width="360" height="200"></canvas><div class="scan"></div><div id="fx"></div><button class="mute" id="mute" aria-label="toggle sound">${S.muted?"🔇":"🔊"}</button></div>`}
+function sceneHTML(){return `<div class="scene"><canvas id="scene" width="360" height="200"></canvas><div class="scan"></div><div id="fx"></div>${(!S.muted&&!Music.current()&&!pendingTrackShown())?`<div class="sndHint" id="sndHint">\ud83c\udfb5 tap anywhere for music</div>`:""}<button class="mute" id="mute" aria-label="toggle sound">${S.muted?"🔇":"🔊"}</button></div>`}
 function mountScene(ch){const cv=$("#scene");if(cv)sceneInit(cv);Scene.chapter=ch||null;Scene.chapterId=ch?Object.keys(CHAPTERS).find(k=>CHAPTERS[k]===ch):null;const m=$("#mute");if(m)m.onclick=()=>{S.muted=!S.muted;save("muted",S.muted);m.textContent=S.muted?"🔇":"🔊";if(!S.muted)SFX.click()}}
 function sessionWins(s){return S.wins[s]||0}
 function freed(s){return sessionWins(s)>=3}
@@ -260,7 +255,7 @@ function home(){
   <div class="field"><label class="eyebrow" for="pname">Your name (shows on the team roster)</label><input type="text" id="pname" value="${esc(S.name)}" placeholder="First name" maxlength="20"></div>
   <div class="field"><label class="eyebrow" for="team">Team code (prefixes share cards)</label><input type="text" id="team" value="${esc(S.team)}" placeholder="HHS-ECON" maxlength="16"></div>
   <p class="footer">Questions from DemiDec Section Exams 1–3 and the session case studies.</p>`;
-  mountScene(null);attract();
+  mountScene(null);attract();wantTrack("overworld");
   $("#startDaily").onclick=()=>{SFX.click();start({practice:false})};$("#startPractice").onclick=()=>{SFX.click();start({practice:true})};
   $("#weeklyBtn").onclick=()=>{SFX.click();weekly()};$("#storyBtn").onclick=()=>{SFX.click();story()};$("#mapBtn").onclick=()=>{SFX.click();campus()};$("#rivalBtn").onclick=()=>{SFX.click();rival()};$("#bagBtn").onclick=()=>{SFX.click();bag()};
   $("#pname").oninput=e=>{S.name=e.target.value.trim();save("name",S.name)};
@@ -292,9 +287,9 @@ function fight(){
   <div class="card"><p class="q">${esc(q.q)}</p><div id="answer"></div><div id="why"></div></div>
   <div class="two">${S.items.skip>0&&!isBoss?`<button class="ghost center item" id="useSkip"><span class="lbl">SKIP (${S.items.skip})</span></button>`:""}${S.items.second>0&&G.hearts<3&&!G.usedSecond?`<button class="ghost center item" id="useSecond"><span class="lbl">2ND CHANCE (${S.items.second})</span></button>`:""}</div>
   <button class="ghost center" id="quit">Flee to campus</button>`;
-  window.scrollTo({top:0});
+  window.scrollTo({top:0});wantTrack(isBoss?"boss":"battle");
   mountScene((isBoss||G.session)?G.chapter:null);sceneSet(isBoss?"cast":"idle");
-  if(isBoss){const f=$("#fx");if(f){const e=document.createElement("div");e.className="bossIntro";e.innerHTML=`<span>${esc(G.chapter.name)}</span><small>appears</small>`;f.appendChild(e);setTimeout(()=>e.remove(),2200);SFX.combo()}}
+  if(isBoss){const f=$("#fx");if(f){const e=document.createElement("div");e.className="bossIntro";e.innerHTML=`<span>${esc(G.chapter.name)}</span><small>appears</small>`;f.appendChild(e);setTimeout(()=>e.remove(),2200);SFX.bossIn()}}
   $("#quit").onclick=home;
   const sk=$("#useSkip");if(sk)sk.onclick=()=>{S.items.skip--;save("items",S.items);G.log.push("⬜");G.i++;SFX.click();toast("Skipped");G.i>G.n?result():fight()};
   const sc=$("#useSecond");if(sc)sc.onclick=()=>{S.items.second--;save("items",S.items);G.hearts++;G.usedSecond=true;SFX.loot();toast("Heart restored");sc.remove();document.querySelector(".hearts").outerHTML=heartsHTML(G.hearts)};
@@ -305,7 +300,7 @@ function fight(){
   else{ans.innerHTML=`<input type="number" inputmode="decimal" step="any" id="num" placeholder="Type a number"><button class="big center" id="go"><span class="lbl">STRIKE</span></button>`;
     const go=()=>{const v=parseFloat($("#num").value);if(isNaN(v))return;answer(v)};$("#go").onclick=go;$("#num").onkeydown=e=>{if(e.key==="Enter")go()};setTimeout(()=>$("#num").focus(),50)}
   let left=limit;const tEl=$("#timer");
-  timerId=setInterval(()=>{left--;tEl.textContent=left;if(left<=5){tEl.classList.add("low");if(left<=3)tone(1200,0,.04,"square",.04)}if(left<=0){clearInterval(timerId);answer(null)}},1000);
+  timerId=setInterval(()=>{left--;tEl.textContent=left;if(left<=5){tEl.classList.add("low");if(left<=3)SFX.tick()}if(left<=0){clearInterval(timerId);answer(null)}},1000);
 }
 function fx(txt,cls){const f=$("#fx");if(!f)return;const e=document.createElement("span");e.className="dmgpop "+cls;e.textContent=txt;f.appendChild(e);setTimeout(()=>e.remove(),1000)}
 function fmt(t,opt,pg){return t.replace("%s",opt.length>38?opt.slice(0,36)+"…":opt).replace("%p",pg||"?")}
@@ -378,7 +373,8 @@ function result(){
   ${G.log.includes("🟥")?`<div class="card"><p class="eyebrow">The Tome beat you on</p>${[...G.qs,G.boss].filter((q,k)=>G.log[k]==="🟥").map(q=>`<p class="miss"><b>${esc(q.term||q.spell)}</b> <span class="muted small">${esc(SESSIONS[q.s])}</span></p>`).join("")}<p class="muted small">These show up more often next time.</p></div>`:""}
   <button class="ghost center" id="again"><span class="lbl">${G.practice?"FIGHT AGAIN":"PRACTICE FIGHT"}</span></button>
   <button class="ghost center" id="home"><span class="lbl">BACK TO CAMPUS</span></button>`;
-  mountScene(G.chapter);Scene.dead=won;if(!won)sceneSet("cast");if(loot)setTimeout(SFX.loot,500);
+  mountScene(G.chapter);Scene.dead=won;if(!won)sceneSet("cast");
+  if(!S.muted){Music.stop();setTimeout(()=>{Music.play(won?"victory":"defeat",{then:()=>{if(loot)Music.sfx("loot");setTimeout(()=>{if(!G||document.querySelector("#copy"))Music.play("overworld")},loot?900:200)}})},won?400:200)}
   $("#copy").onclick=()=>{const txt=$("#card").textContent;const fb=()=>{const r=document.createRange();r.selectNodeContents($("#card"));const s=getSelection();s.removeAllRanges();s.addRange(r);toast("Select & copy")};try{navigator.clipboard.writeText(txt).then(()=>toast("Copied!")).catch(fb)}catch(e){fb()}};
   $("#again").onclick=()=>start({practice:true});$("#home").onclick=home;
 }
@@ -395,7 +391,7 @@ function story(){
     {t:"How to Win",b:"<b>Daily Quest</b>: five questions and a chapter boss, same for everyone, new each day. Keep the streak or the Tome runs off with it.<br><b>Weekly Boss</b>: the whole team pools damage into one bar. Every fight counts.<br><b>Campus Map</b>: beat a chapter three times to free its location.<br><b>Rival</b>: paste a teammate's code to fight their exact quest.<br><br>Free all eight locations and the Tome goes back to being a book. Then we take the real test."}
   ];
   let i=0;
-  const render=()=>{const p=pages[i];
+  const render=()=>{wantTrack("overworld");const p=pages[i];
     app.innerHTML=`<header class="title"><p class="eyebrow">Escape from the Econ Monster</p><h1>${esc(p.t)}</h1><div class="tartan" aria-hidden="true"></div></header>
     ${sceneHTML()}
     <div class="card story"><p>${p.b}</p></div>
@@ -413,7 +409,7 @@ function renderWeekly(){const el=$("#weekly");if(!el)return;const wt=weeklyTotal
   ${hp<=0?`<div class="loot"><span class="eyebrow">SLAIN</span><p>The team took the Tome down this week. It respawns Monday.</p></div>`:""}
   <div class="card"><p class="eyebrow">Roster • damage this week</p>${wt.rows.length?wt.rows.map((r,i)=>`<div class="rrow ${r.me?"me":""}"><span class="pos">${i+1}</span><span class="rn">${r.hat?HATS[r.hat]+" ":""}${esc(r.name)}</span><span class="rd">${r.dmg.toLocaleString()}</span></div>`).join(""):"<p class='muted'>No damage logged yet this week. Every daily and practice fight counts.</p>"}
   ${dbReady?"":"<p class='muted small'>Showing this phone only. Team pooling is not configured yet.</p>"}</div>`}
-function weekly(){
+function weekly(){wantTrack("overworld");
   app.innerHTML=`<header class="title"><p class="eyebrow">Everyone’s damage pools into one bar</p><h1>Weekly Boss</h1></header>${sceneHTML()}<div id="weekly"></div>
   <button class="big" id="fightW"><span class="lbl">WEEKLY RAID</span><span class="sub">12 questions across every session + boss. Same seed for the whole team.</span></button>
   <button class="ghost center" id="home"><span class="lbl">BACK TO CAMPUS</span></button>`;
@@ -422,7 +418,7 @@ function weekly(){
 }
 
 // ---------- CAMPUS MAP ----------
-function campus(){
+function campus(){wantTrack("overworld");
   app.innerHTML=`<header class="title"><p class="eyebrow">Tap a spot to walk there. Tap again to fight.</p><h1>Highland High</h1><div class="tartan" aria-hidden="true"></div></header>
   <div class="scene map"><canvas id="map" width="512" height="448"></canvas><div class="scan"></div><div class="mapHud" id="mapHud"></div></div>
   <div class="win" id="spotInfo"><p class="muted">Walk the Scot to a location.</p></div>
@@ -440,7 +436,7 @@ function campus(){
     if(sp&&atSpot&&sp[0]===atSpot[0]){SFX.click();start({practice:true,session:+sp[0]});return}
     target=sp?{x:sp[1].x,y:sp[1].y+4}:{x:Math.max(8,Math.min(248,x)),y:Math.max(14,Math.min(208,y))};SFX.click()});
   (function draw(){if(!cv.isConnected)return;
-    if(target){const dx=target.x-hero.x,dy=target.y-hero.y,d=Math.hypot(dx,dy);if(d<1.5){hero.x=target.x;hero.y=target.y;target=null;save("heroPos",hero);const sp=spotAt(hero.x,hero.y-4);if(sp&&(!atSpot||sp[0]!==atSpot[0])){atSpot=sp;SFX.hit();info()}else if(!sp&&atSpot){atSpot=null;info()}}else{hero.x+=dx/d*1.6;hero.y+=dy/d*1.6;step++}}
+    if(target){const dx=target.x-hero.x,dy=target.y-hero.y,d=Math.hypot(dx,dy);if(d<1.5){hero.x=target.x;hero.y=target.y;target=null;save("heroPos",hero);const sp=spotAt(hero.x,hero.y-4);if(sp&&(!atSpot||sp[0]!==atSpot[0])){atSpot=sp;SFX.hit();info()}else if(!sp&&atSpot){atSpot=null;info()}}else{hero.x+=dx/d*1.6;hero.y+=dy/d*1.6;step++;if(step%8===0)SFX.step()}}
     c.setTransform(2,0,0,2,0,0);drawCampus(c,fs,performance.now());
     // hero (facing by direction, 2-frame walk)
     const bobY=target&&Math.floor(step/6)%2?-1:0;const hx=hero.x-7,hy=hero.y-20+bobY;
@@ -453,7 +449,7 @@ function campus(){
   const sp0=spotAt(hero.x,hero.y-4);if(sp0){atSpot=sp0;info()}
 }
 // ---------- RIVAL ----------
-function rival(){
+function rival(){wantTrack("overworld");
   app.innerHTML=`<header class="title"><p class="eyebrow">Fight the exact same quest as a friend</p><h1>Rival Mode</h1></header>
   <div class="card"><p>Every share card ends with a code like <b>EM-abc-12-3f-maya</b>. Paste one here to fight the same questions and see both results side by side.</p>
   <input type="text" id="code" placeholder="EM-..." autocapitalize="off" autocomplete="off">
@@ -464,7 +460,7 @@ function rival(){
     SFX.click();start({seed:parseInt(m[1],36),rival:{dmg:parseInt(m[2],36),secs:parseInt(m[3],36),name:m[4]||"rival"}})};
 }
 // ---------- BAG ----------
-function bag(){
+function bag(){wantTrack("overworld");
   app.innerHTML=`<header class="title"><p class="eyebrow">Loot drops after a win</p><h1>Your Bag</h1></header>
   <div class="card"><p class="eyebrow">Items</p><p>${ITEMS.skip.n}: <b>${S.items.skip||0}</b> — ${ITEMS.skip.d}</p><p>${ITEMS.second.n}: <b>${S.items.second||0}</b> — ${ITEMS.second.d}</p></div>
   <div class="card"><p class="eyebrow">Hats</p>${S.hats.length?`<div class="chips">${S.hats.map(h=>`<button class="chip ${S.hat===h?"on":""}" data-h="${h}">${HATS[h]} ${h}</button>`).join("")}<button class="chip ${S.hat?"":"on"}" data-h="">none</button></div>`:"<p class='muted'>None yet.</p>"}</div>

@@ -199,6 +199,7 @@ button.opt.dim{opacity:.45}
 @keyframes shakeX{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
 button.opt.right{animation:popIn .3s}
 @keyframes popIn{0%{transform:scale(.97)}50%{transform:scale(1.03)}100%{transform:scale(1)}}
+.sndHint{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);font-family:var(--pixel);font-size:.5rem;color:#fff;background:rgba(13,26,58,.8);border:2px solid var(--line);padding:6px 10px;border-radius:4px;animation:blink 1.4s infinite;pointer-events:none;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -210,6 +211,7 @@ button.opt.right{animation:popIn .3s}
 <script src="firebase-config.js"></script>
 <script src="campus.js"></script>
 <script src="bosses.js"></script>
+<script src="music.js"></script>
 <script src="questions.js"></script>
 <script src="game.js"></script>
 </body>

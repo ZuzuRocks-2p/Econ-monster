@@ -28,6 +28,7 @@ const LOOT=[
  {k:"item",v:"skip"},{k:"item",v:"skip"},{k:"item",v:"second"},{k:"item",v:"second"}
 ];
 const HATS={crown:"👑",wizard:"🧠",cap:"🧢",halo:"😇"};
+function icon(n,cls=""){return `<img class="icon ${cls}" src="art/icons/${n}.png" alt="${n}">`}
 const ITEMS={skip:{n:"Skip",d:"Skip one question, no damage either way"},second:{n:"Second Chance",d:"Restore a heart once per fight"}};
 BANK.forEach(q=>{if(q.s===11)q.s=12;else if(q.s===10)q.s=11});
 const TAUGHT=8;let TOME_MAX=200;const WEEK_MAX=5000;
@@ -357,7 +358,7 @@ function fight(){
     ${isBoss?`<div class="taunt cast">${esc(G.chapter.name)} casts <b>${esc(q.spell)}</b>! Dodge by answering it right.</div>`:""}
   </div>
   <div class="card"><p class="q">${esc(q.q)}</p><div id="answer"></div><div id="why"></div></div>
-  <div class="two">${S.items.skip>0&&!isBoss?`<button class="ghost center item" id="useSkip"><span class="lbl">SKIP (${S.items.skip})</span></button>`:""}${S.items.second>0&&G.hearts<3&&!G.usedSecond?`<button class="ghost center item" id="useSecond"><span class="lbl">2ND CHANCE (${S.items.second})</span></button>`:""}</div>
+  <div class="two">${S.items.skip>0&&!isBoss?`<button class="ghost center item" id="useSkip">${icon("skip","sm")}<span class="lbl">SKIP (${S.items.skip})</span></button>`:""}${S.items.second>0&&G.hearts<3&&!G.usedSecond?`<button class="ghost center item" id="useSecond">${icon("second","sm")}<span class="lbl">2ND CHANCE (${S.items.second})</span></button>`:""}</div>
   <button class="ghost center" id="quit">Flee to campus</button>`;
   window.scrollTo({top:0});wantTrack(isBoss?"boss":"battle");
   mountScene((isBoss||G.session)?G.chapter:null);sceneSet(isBoss?"cast":"idle");
@@ -578,9 +579,9 @@ function rival(){wantTrack("overworld");
 // ---------- BAG ----------
 function bag(){wantTrack("overworld");
   app.innerHTML=`<header class="title"><p class="eyebrow">Loot drops after a win</p><h1>Your Bag</h1></header>
-  <div class="card"><p class="eyebrow">Items</p><p>${ITEMS.skip.n}: <b>${S.items.skip||0}</b> — ${ITEMS.skip.d}</p><p>${ITEMS.second.n}: <b>${S.items.second||0}</b> — ${ITEMS.second.d}</p></div>
-  <div class="card"><p class="eyebrow">Hero</p><div class="chips">${Object.entries(HEROES).map(([k,h])=>`<button class="chip ${heroKey()===k?"on":""}" data-hero="${k}">${h.icon} ${esc(h.name)}</button>`).join("")}</div></div>
-  <div class="card"><p class="eyebrow">Hats</p>${S.hats.length?`<div class="chips">${S.hats.map(h=>`<button class="chip ${S.hat===h?"on":""}" data-h="${h}">${HATS[h]} ${h}</button>`).join("")}<button class="chip ${S.hat?"":"on"}" data-h="">none</button></div>`:"<p class='muted'>None yet.</p>"}</div>
+  <div class="card"><p class="eyebrow">Items</p><div class="itemrow">${icon("skip")}<div><b>${ITEMS.skip.n}</b> × ${S.items.skip||0}<br><span class="small muted">${ITEMS.skip.d}</span></div></div><div class="itemrow">${icon("second")}<div><b>${ITEMS.second.n}</b> × ${S.items.second||0}<br><span class="small muted">${ITEMS.second.d}</span></div></div></div>
+  <div class="card"><p class="eyebrow">Hero</p><div class="chips">${Object.entries(HEROES).map(([k,h])=>`<button class="chip ${heroKey()===k?"on":""}" data-hero="${k}"><img class="icon sm" src="art/sprites/${k}_idle.png" alt=""> ${esc(h.name)}</button>`).join("")}</div></div>
+  <div class="card"><p class="eyebrow">Hats</p>${S.hats.length?`<div class="chips">${S.hats.map(h=>`<button class="chip ${S.hat===h?"on":""}" data-h="${h}">${icon(h,"sm")} ${h}</button>`).join("")}<button class="chip ${S.hat?"":"on"}" data-h="">none</button></div>`:"<p class='muted'>None yet.</p>"}</div>
   <div class="card"><p class="eyebrow">Titles</p>${S.titles.length?`<div class="chips">${S.titles.map(t=>`<button class="chip ${S.title===t?"on":""}" data-t="${esc(t)}">${esc(t)}</button>`).join("")}</div>`:"<p class='muted'>None yet.</p>"}</div>
   <div class="card"><p class="eyebrow">For your coach</p><button class="ghost center" id="coachCode"><span class="lbl">COPY MY COACH CODE</span></button><p class="muted small">Sends your misses and streak, nothing else.</p></div>
   <button class="ghost center" id="home"><span class="lbl">BACK TO CAMPUS</span></button>`;

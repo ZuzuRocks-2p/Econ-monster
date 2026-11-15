@@ -240,17 +240,17 @@ function loop(){
   // tome
   const bm=Scene.chapterId?bossMaps(Scene.chapterId):null;
   const M=bm||{idle:TOME_IDLE,cast:TOME_CAST,blink:TOME_BLINK,hit:TOME_HIT,dead:TOME_DEAD};
-  let map=M.idle;let bob=Math.sin(Scene.t/14)*4;const pal=(Scene.chapter&&!bm)?Object.assign({},PAL,Scene.chapter.pal):PAL;
+  let map=M.idle;let bob=Math.sin(Scene.t/28)*2;const pal=(Scene.chapter&&!bm)?Object.assign({},PAL,Scene.chapter.pal):PAL;
   if(Scene.dead)map=M.dead,bob=0;
   else if(Scene.state==="hit"){map=Scene.stateT<8?M.hit:M.idle;if(Scene.stateT>14)Scene.state="idle"}
-  else if(Scene.state==="cast"){map=M.cast;bob=Math.sin(Scene.t/4)*2;c.fillStyle=`rgba(255,92,92,${.15+.1*Math.sin(Scene.t/5)})`;c.beginPath();c.arc(180,100,80,0,6.28);c.fill()}
+  else if(Scene.state==="cast"){map=M.cast;bob=Math.sin(Scene.t/20)*1.5;c.fillStyle=`rgba(255,92,92,${.15+.1*Math.sin(Scene.t/5)})`;c.beginPath();c.arc(180,100,80,0,6.28);c.fill()}
   else{if(Scene.t%140<6)map=M.blink}
   if(!Scene.dead){c.fillStyle=`rgba(123,220,90,${.12+.06*Math.sin(Scene.t/10)})`;c.beginPath();c.ellipse(180,170,60,8,0,0,6.28);c.fill()}
   const mv=Scene.chapter&&!Scene.dead?Scene.chapter.move:null;
   let tx=180-12*PX,ty=28+bob,sc=PX;
   const bossKey=Scene.chapterId?CHAPTERS[Scene.chapterId].sprite:"tome";
   const bossPose=Scene.dead?"dead":Scene.state==="hit"&&Scene.stateT<10?"hit":Scene.state==="cast"?"cast":"idle";
-  let bx=200;if(mv==="slide")bx+=Math.sin(Scene.t/22)*35;
+  let bx=200;if(mv==="slide")bx+=Math.sin(Scene.t/40)*6;
   const bossBob=Scene.dead?0:bob;
   if(drawSprite(c,bossKey+"_"+bossPose,bx,H-22+bossBob*0.5,200,150,true)){
     if(Scene.state==="hit"&&Scene.stateT<6){c.save();c.globalCompositeOperation="source-atop";c.fillStyle="rgba(255,255,255,.55)";c.fillRect(bx-110,0,220,H);c.restore()}

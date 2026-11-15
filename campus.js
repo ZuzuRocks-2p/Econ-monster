@@ -14,7 +14,7 @@ const CAMPUS={
     8:{x:36,y:44,label:"Ball Fields"},
     9:{x:56,y:140,label:"Bleachers"},
     10:{x:228,y:152,label:"ASB Store"},
-    11:{x:200,y:6,label:"Charger Ave Dropoff"},
+    11:{x:118,y:22,label:"Charger Ave Dropoff"},
     12:{x:210,y:176,label:"Art Room"}
   }
 };

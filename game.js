@@ -386,8 +386,8 @@ function answer(v){
   document.querySelectorAll(".item").forEach(b=>b.remove());
   let dealt=0,crit=false,taunt="";
   if(ok){
-    G.combo++;G.best=Math.max(G.best,G.combo);crit=secs<3;
-    const speed=crit?2.0:secs<8?1.3:1.0,base=isBoss?35:20;
+    G.combo++;G.best=Math.max(G.best,G.combo);const critWin=q.type==="num"?10:q.type==="two"?4:6;crit=secs<critWin;
+    const speed=crit?2.0:secs<critWin*2?1.3:1.0,base=isBoss?35:20;
     dealt=Math.round(base*speed*(1+0.1*(G.combo-1)));
     S.seen=S.seen||{};S.seen[q.id]=(S.seen[q.id]||0)+1;save("seen",S.seen);G.tome=Math.max(isBoss?0:1,G.tome-dealt);G.dmg+=dealt;G.log.push("🟩");sceneSet("hit");Scene.heroPose="attack";setTimeout(()=>{if(Scene.heroPose==="attack")Scene.heroPose="idle"},700);burst(crit?50:24,crit?"#ffffff":"#ffb347");
     if(crit){G.crits++;Scene.crit=12;Scene.shake=18;fx("CRITICAL −"+dealt,"crit");SFX.crit()}else{fx("−"+dealt,"hit");SFX.hit()}
@@ -506,7 +506,7 @@ function coach(){
 function tutorial(then){
   if(load("tutSeen",false)){then();return}
   const steps=[
-    {t:"How to hurt the Tome",b:"Answer right and you hit. Answer in under <b>3 seconds</b> and you land a <b>CRITICAL</b> for double damage."},
+    {t:"How to hurt the Tome",b:"Answer right and you hit. Answer fast and you land a <b>CRITICAL</b> for double damage: under <b>6 seconds</b> on multiple choice, 4 on swipes, 10 on math."},
     {t:"Combos",b:"Each correct answer in a row raises your combo and your damage. One miss breaks it, costs a heart, and heals the Tome."},
     {t:"The boss round",b:"The Tome holds at <b>1 HP</b> until the chapter boss appears. The boss casts a trap from the test. Dodge it by answering the trap right."},
     {t:"Three hearts",b:"Lose all three and the Tome devours you. Items from your Bag (Skip, Second Chance) can save a run."}

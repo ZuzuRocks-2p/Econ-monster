@@ -15,7 +15,7 @@ const CAMPUS={
     9:{x:56,y:140,label:"Bleachers"},
     10:{x:228,y:152,label:"ASB Store"},
     11:{x:200,y:6,label:"Charger Ave Dropoff"},
-    12:{x:100,y:132,label:"Art Room"}
+    12:{x:210,y:176,label:"Art Room"}
   }
 };
 const CP={grass:"#3d8f45",grass2:"#48a050",dirt:"#b89258",dirt2:"#a07e46",orchard:"#5d7f3c",tree:"#2e6b2a",treeHi:"#4f9a44",path:"#cfc8a8",road:"#4a4a55",roadLine:"#e8d26b",roof:"#5a3f36",roofHi:"#7a5a4c",roofLo:"#3f2a24",wall:"#d9cfb3",solar:"#243a66",solarHi:"#3b5aa0",court:"#2f6f8f",courtLine:"#dfe8ee",track:"#9e3b3b",trackLine:"#f1e9d2",field:"#4ba65a",water:"#3f78c0",shadow:"rgba(0,0,0,.25)",outline:"#1a1a26"};
@@ -116,11 +116,11 @@ const TILEMAP=[
 "................................",
 ".......ppppppppppppppppppppppppp",
 ".....................P..........",
-"........DDDDDDDDD....P..........",
-"........DDDDDDDDD....P..........",
-"........DDDDDDDDD....P..........",
-"........DDDDDDDDD....P..........",
-"........DDDDDDDDD....P..........",
+"........ppppppppp....P..........",
+"........ppppppppp....P..........",
+"........ppppppppp....P..........",
+"........ppppppppp....P..........",
+"........ppppppppp....P..........",
 ".....................P..........",
 ".......ppppppppppppppppppppppppp",
 "................................",
@@ -140,6 +140,15 @@ function drawCampusTiles(c,freedSet,now){
   // athletic practice field where the orchard used to be
   c.fillStyle="rgba(255,255,255,.35)";for(let y=30;y<106;y+=10)c.fillRect(70,y,70,1);c.fillRect(70,28,1,80);c.fillRect(139,28,1,80);
   c.fillStyle="#f1e9d2";c.fillRect(96,26,18,1);c.fillRect(96,26,1,5);c.fillRect(113,26,1,5);c.fillRect(96,108,18,1);c.fillRect(96,104,1,5);c.fillRect(113,104,1,5);
+  // aquatic center: deck, pool with lanes, bleacher strip; basketball courts beside it
+  px(c,66,114,52,38,"#cfc8a8");                       // deck
+  px(c,70,118,44,30,"#1e5a8a");px(c,72,120,40,26,"#3f9fd8");  // pool
+  for(let i=1;i<6;i++)px(c,72+i*6.6,120,1,26,"#dfe8ee");      // lane lines
+  px(c,72,132,40,1,"rgba(255,255,255,.6)");
+  px(c,66,110,52,3,"#8a8a9a");                         // shade canopy edge
+  px(c,120,118,20,30,"#3a3a44");c.strokeStyle="#f1e9d2";c.lineWidth=.6;c.strokeRect(121.5,119.5,17,13);c.strokeRect(121.5,134.5,17,13);  // 2 basketball courts
+  // softball infield on the practice field
+  c.fillStyle="#b89258";c.beginPath();c.moveTo(103,70);c.lineTo(111,78);c.lineTo(103,86);c.lineTo(95,78);c.closePath();c.fill();
   // placed landmark sprites (sorted by bottom edge for depth)
   LANDMARKS.slice().sort((a,b)=>(a[2]+a[4])-(b[2]+b[4])).forEach(([k,x,y,w,h,r])=>L(c,k,x,y,w,h,r));
   // boss markers

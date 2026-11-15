@@ -407,7 +407,7 @@ function start(o){clearInterval(attractT);if(!o.__tut&&!load("tutSeen",false)){t
 function fight(){
   clearInterval(timerId);
   const isBoss=G.i===G.n,q=isBoss?G.boss:G.qs[G.i];G.qStart=Date.now();G.done=false;
-  const limit=isBoss?30:q.type==="num"?30:20;
+  const limit=isBoss?35:q.type==="num"?35:25;
   app.innerHTML=`
   <div class="hud">
     <div class="row"><span class="eyebrow">${isBoss?"☠ "+esc(G.chapter.name).toUpperCase():(G.weekly?"WEEKLY ":"")+"Q "+(G.i+1)+"/"+G.n} • ${esc(SESSIONS[q.s])}</span>${heartsHTML(G.hearts)}</div>

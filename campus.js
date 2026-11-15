@@ -93,7 +93,6 @@ const LANDMARKS=[
  ["pod",206,186,18,18],["pod",228,186,18,18]
 ];
 // orchard trees on a grid inside the dirt block
-for(let r=0;r<9;r++)for(let k=0;k<5;k++)LANDMARKS.push(["tree",66+k*16+((r%2)?8:0),26+r*9,12,12]);
 // scattered trees
 [[4,92],[6,200],[120,154],[176,124],[246,124],[246,200],[100,150]].forEach(([x,y])=>LANDMARKS.push(["tree",x,y,12,12]));
 // ---------- IMAGE TILE OVERWORLD ----------
@@ -107,17 +106,17 @@ const TILEMAP=[
 "================================",
 "...............................=",
 "...............................=",
-"........dddddddddd.............=",
-"........dddddddddd.............=",
-"........dddddddddd.............=",
-"........dddddddddd..............",
-"........dddddddddd..............",
-"........dddddddddd..............",
-"........dddddddddd..............",
-"........dddddddddd..............",
-"........dddddddddd..............",
+"...............................=",
+"...............................=",
+"...............................=",
+"................................",
+"................................",
+"................................",
+"................................",
+"................................",
+"................................",
 ".......ppppppppppppppppppppppppp",
-"........dddddddddd...P..........",
+".....................P..........",
 "........DDDDDDDDD....P..........",
 "........DDDDDDDDD....P..........",
 "........DDDDDDDDD....P..........",
@@ -139,6 +138,9 @@ function drawCampusTiles(c,freedSet,now){
     // ground under sprites that have transparency
     if(["tree_round","tree_fruit","bush","flagpole","bench_can","fence_lamp","bleachers","solar_a","solar_b","gym_a","gym_b","gym_c","gym_d","gymdoor"].includes(k))T(c,k.startsWith("solar")?"road_v":k.startsWith("gym")?"path":"grass",col*ts-0.5,r*ts-0.5,ts+1,ts+1);
     T(c,k,col*ts-0.5,r*ts-0.5,ts+1,ts+1)}
+  // athletic practice field where the orchard used to be
+  c.fillStyle="rgba(255,255,255,.35)";for(let y=30;y<106;y+=10)c.fillRect(70,y,70,1);c.fillRect(70,28,1,80);c.fillRect(139,28,1,80);
+  c.fillStyle="#f1e9d2";c.fillRect(96,26,18,1);c.fillRect(96,26,1,5);c.fillRect(113,26,1,5);c.fillRect(96,108,18,1);c.fillRect(96,104,1,5);c.fillRect(113,104,1,5);
   // placed landmark sprites (sorted by bottom edge for depth)
   LANDMARKS.slice().sort((a,b)=>(a[2]+a[4])-(b[2]+b[4])).forEach(([k,x,y,w,h])=>L(c,k,x,y,w,h));
   // boss markers

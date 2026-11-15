@@ -4,16 +4,16 @@ const CAMPUS={
   w:256,h:224,
   // boss locations placed on real buildings (session -> position, label)
   spots:{
-    1:{x:44,y:84,label:"Snack Bar"},
-    2:{x:180,y:116,label:"The Quad"},
-    3:{x:120,y:140,label:"The Gym"},
-    4:{x:212,y:84,label:"Library"},
-    5:{x:236,y:36,label:"Front Office"},
-    6:{x:100,y:196,label:"Parking Lot"},
-    7:{x:156,y:196,label:"Bus Loop"},
-    8:{x:30,y:44,label:"Ball Fields"},
-    9:{x:52,y:140,label:"Bleachers"},
-    10:{x:220,y:172,label:"ASB Store"},
+    1:{x:46,y:80,label:"Snack Bar"},
+    2:{x:178,y:116,label:"The Quad"},
+    3:{x:146,y:138,label:"The Gym"},
+    4:{x:214,y:76,label:"Library"},
+    5:{x:244,y:28,label:"Front Office"},
+    6:{x:98,y:196,label:"Parking Lot"},
+    7:{x:164,y:196,label:"Bus Loop"},
+    8:{x:32,y:40,label:"Ball Fields"},
+    9:{x:56,y:140,label:"Bleachers"},
+    10:{x:226,y:174,label:"ASB Store"},
     11:{x:200,y:6,label:"Charger Ave Dropoff"},
     12:{x:100,y:132,label:"Art Room"}
   }
@@ -72,6 +72,30 @@ var drawCampus=function(c,freedSet,now){
   });
 }
 
+// ---------- LANDMARKS ----------
+const LM={};["gym","diamond","track","bleachers","tennis","carport","pod","snackbar","flag","tree"].forEach(k=>{const im=new Image();im.src="art/landmarks/"+k+".png";LM[k]=im});
+function L(c,k,x,y,w,h){const im=LM[k];if(!(im&&im.complete&&im.naturalWidth))return false;const s=Math.min(w/im.naturalWidth,h/im.naturalHeight);const dw=im.naturalWidth*s,dh=im.naturalHeight*s;c.drawImage(im,x+(w-dw)/2,y+(h-dh)/2,dw,dh);return true}
+// positions traced from the aerial, in 256x224 map space: [key,x,y,w,h]
+const LANDMARKS=[
+ ["diamond",2,6,62,62],["diamond",66,8,30,30],["diamond",142,8,42,42],
+ ["track",14,100,40,88],["bleachers",50,110,12,56],
+ ["gym",118,104,56,60],
+ ["tennis",58,164,64,26],["carport",56,186,84,26],["carport",142,186,46,26],
+ ["snackbar",34,78,24,20],["flag",190,116,8,22],
+ // upper-right pod cluster
+ ["pod",150,24,18,18],["pod",172,20,18,18],["pod",194,14,18,18],["pod",216,10,18,18],["pod",236,16,18,18],
+ ["pod",156,48,18,18],["pod",178,46,18,18],["pod",200,44,18,18],["pod",222,44,18,18],
+ ["pod",186,68,18,18],["pod",208,66,18,18],["pod",230,66,18,18],
+ ["pod",196,88,18,18],["pod",218,88,18,18],["pod",240,86,18,18],
+ // lower-right cluster
+ ["pod",186,142,18,18],["pod",208,140,18,18],["pod",230,140,18,18],
+ ["pod",196,164,18,18],["pod",218,164,18,18],["pod",240,164,18,18],
+ ["pod",206,186,18,18],["pod",228,186,18,18]
+];
+// orchard trees on a grid inside the dirt block
+for(let r=0;r<9;r++)for(let k=0;k<5;k++)LANDMARKS.push(["tree",66+k*16+((r%2)?8:0),26+r*9,12,12]);
+// scattered trees
+[[4,92],[6,200],[120,154],[176,124],[246,124],[246,200],[100,150]].forEach(([x,y])=>LANDMARKS.push(["tree",x,y,12,12]));
 // ---------- IMAGE TILE OVERWORLD ----------
 const TILES={};let tilesReady=false;
 (function(){const names=["grass","grass2","grass3","grass4","dirtpatch","dirt","path","path2","path_v","road_h_edge","road_v","road_v2","road_v3","road_v4","road_t","tree_fruit","tree_round","bush","roof_a","roof_b","roof_c","wall_window","wall_door","wall_small","gym_a","gym_b","gym_c","gym_d","gymdoor","tennis","solar_a","solar_b","infield","track","bleachers","flagpole","bench_can","fence_lamp"];
@@ -81,31 +105,31 @@ function T(c,k,x,y,w=16,h=16){const im=TILES[k];if(im&&im.complete&&im.naturalWi
 const TILEMAP_KEY={".":"grass",",":"grass2",";":"grass3","'":"grass4","d":"dirt","D":"dirtpatch","p":"path","P":"path_v","=":"road_h_edge","|":"road_v","T":"road_t","o":"tree_round","f":"tree_fruit","b":"bush","R":"roof_a","r":"roof_b","W":"wall_window","w":"wall_door","G":"gym_a","g":"gym_b","H":"gym_c","h":"gym_d","e":"gymdoor","t":"tennis","s":"solar_a","S":"solar_b","i":"infield","k":"track","L":"bleachers","F":"flagpole","n":"bench_can","c":"fence_lamp"};
 const TILEMAP=[
 "================================",
-",,,,,,,,.,,,,.....,,,,,,.......=",
-",......,..........,....,...RR..=",
-",......,dfdfdfdfdf,....,RR.WWRR=",
-",......,fdfdfdfdfdRR.RR,WW...WW=",
-",......,dfdfdfdfdfWW.WW,.......=",
-",......,fdfdfdfdfP,,,,,,........",
-",......,dfdfdfdfdP.RR.RR.RR.RR..",
-",,,,,,,,fdfdfdfdfP.WW.WW.WW.WW..",
-"....www.dfdfRRdfdP.....RR.RR.RR.",
-"....RRR.fdfdRRodfP.....WW.WW.WW.",
-"o.......dfdfdfdfdP......RR.RR.RR",
-".......ppppppppppPppppppWWpWWpWW",
-"..kkkkL.dfdfdfdfdP...P..........",
-"..kkkkL.DDDDDDDppppppP..........",
-"..k..kL.DDDDDDDppppopP.F......o.",
-"..k..kL.DpppDDDppppppPo.........",
-"..k..kL.DpppDDDppppppP..........",
-"..k..kL.DDDDDDDppppppP.RR.RR.RR.",
-"..k..kL...o....ppppppP.WW.WW.WW.",
-"..k..kLpppppppppppppppppppppppp.",
-"..k..k.tttttttt.o....P..RR.RR.RR",
-"..kkkk.tttttttt......P..WW.WW.WW",
-"..kkkk.sssssssssssssss...RR.RR..",
-".o.....sssssssssssssss...WW.WW.o",
-".......sssssssssssssss..........",
+"...............................=",
+"...............................=",
+"........dddddddddd.............=",
+"........dddddddddd.............=",
+"........dddddddddd.............=",
+"........dddddddddd..............",
+"........dddddddddd..............",
+"........dddddddddd..............",
+"........dddddddddd..............",
+"........dddddddddd..............",
+"........dddddddddd..............",
+".......ppppppppppppppppppppppppp",
+"........dddddddddd...P..........",
+"........DDDDDDDDD....P..........",
+"........DDDDDDDDD....P..........",
+"........DDDDDDDDD....P..........",
+"........DDDDDDDDD....P..........",
+"........DDDDDDDDD....P..........",
+".....................P..........",
+".......ppppppppppppppppppppppppp",
+"................................",
+"................................",
+"................................",
+"................................",
+"................................",
 "================================",
 "================================"];
 function drawCampusTiles(c,freedSet,now){
@@ -115,14 +139,8 @@ function drawCampusTiles(c,freedSet,now){
     // ground under sprites that have transparency
     if(["tree_round","tree_fruit","bush","flagpole","bench_can","fence_lamp","bleachers","solar_a","solar_b","gym_a","gym_b","gym_c","gym_d","gymdoor"].includes(k))T(c,k.startsWith("solar")?"road_v":k.startsWith("gym")?"path":"grass",col*ts-0.5,r*ts-0.5,ts+1,ts+1);
     T(c,k,col*ts-0.5,r*ts-0.5,ts+1,ts+1)}
-  // composed landmarks: diamonds and the octagon gym
-  const diamond2=(cx,cy,r)=>{c.fillStyle="#4a8a3a";c.fillRect(cx-r,cy-r,2*r,2*r);T(c,"infield",cx-r*0.7,cy-r*0.7,r*1.4,r*1.4);c.fillStyle="#b89258";c.beginPath();c.moveTo(cx,cy-r*0.6);c.lineTo(cx+r*0.6,cy);c.lineTo(cx,cy+r*0.6);c.lineTo(cx-r*0.6,cy);c.closePath();c.fill();c.strokeStyle="#f1e9d2";c.lineWidth=1;c.beginPath();c.moveTo(cx,cy+r*0.6);c.lineTo(cx+r*0.6,cy);c.moveTo(cx,cy+r*0.6);c.lineTo(cx-r*0.6,cy);c.stroke();c.fillStyle="#4a8a3a";c.fillRect(cx-2,cy-2,4,4)};
-  diamond2(32,40,26);diamond2(88,28,14);diamond2(168,30,18);
-  // gym: octagon roof composed from the gym tiles
-  const gx=120,gy=108,gr=26;c.save();c.beginPath();for(let k=0;k<8;k++){const a=k/8*Math.PI*2+Math.PI/8;c.lineTo(gx+gr*Math.cos(a),gy+gr*Math.sin(a))}c.closePath();c.clip();
-  T(c,"gym_a",gx-gr,gy-gr,gr,gr);T(c,"gym_b",gx,gy-gr,gr,gr);T(c,"gym_c",gx-gr,gy,gr,gr);T(c,"gym_d",gx,gy,gr,gr);c.restore();
-  c.strokeStyle="#1a1a26";c.lineWidth=1.5;c.beginPath();for(let k=0;k<8;k++){const a=k/8*Math.PI*2+Math.PI/8;c.lineTo(gx+gr*Math.cos(a),gy+gr*Math.sin(a))}c.closePath();c.stroke();
-  c.fillStyle="#d9cfb3";c.beginPath();c.arc(gx,gy,7,0,6.28);c.fill();T(c,"gymdoor",gx-6,gy+gr-10,12,10);
+  // placed landmark sprites (sorted by bottom edge for depth)
+  LANDMARKS.slice().sort((a,b)=>(a[2]+a[4])-(b[2]+b[4])).forEach(([k,x,y,w,h])=>L(c,k,x,y,w,h));
   // boss markers
   Object.entries(CAMPUS.spots).forEach(([s,sp])=>{const f=freedSet.has(+s);const bob=Math.sin((now||0)/300+s)*1.5;
     px(c,sp.x-6,sp.y+6,12,2,"rgba(0,0,0,.3)");

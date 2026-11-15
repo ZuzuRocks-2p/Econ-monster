@@ -247,6 +247,8 @@ button.item{flex-direction:row;gap:8px;justify-content:center}
 .tutcard p{font-size:1.05rem;line-height:1.5}
 .tutcard p b{color:var(--accent)}
 button.ghost.small .lbl{font-size:.6rem}
+.fxs{position:absolute;transform:translate(-50%,-50%);image-rendering:pixelated;pointer-events:none;animation:fxpop .6s ease-out forwards}
+@keyframes fxpop{0%{opacity:0;transform:translate(-50%,-50%) scale(.4)}20%{opacity:1;transform:translate(-50%,-50%) scale(1.1)}70%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-50%) scale(1.15)}}
 </style>
 </head>
 <body>
@@ -255,11 +257,11 @@ button.ghost.small .lbl{font-size:.6rem}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=1794713906"></script>
-<script src="campus.js?v=1794713906"></script>
-<script src="bosses.js?v=1794713906"></script>
-<script src="music.js?v=1794713906"></script>
-<script src="questions.js?v=1794713906"></script>
-<script src="game.js?v=1794713906"></script>
+<script src="firebase-config.js?v=1794714210"></script>
+<script src="campus.js?v=1794714210"></script>
+<script src="bosses.js?v=1794714210"></script>
+<script src="music.js?v=1794714210"></script>
+<script src="questions.js?v=1794714210"></script>
+<script src="game.js?v=1794714210"></script>
 </body>
 </html>

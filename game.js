@@ -184,6 +184,9 @@ function spriteImg(key){if(IMG[key])return IMG[key].complete&&IMG[key].naturalWi
 function drawSprite(c,key,cx,bottom,maxW,maxH,flip){const im=spriteImg(key);if(!im)return false;const s=Math.min(maxW/im.naturalWidth,maxH/im.naturalHeight);const w=im.naturalWidth*s,h=im.naturalHeight*s;c.save();c.imageSmoothingEnabled=false;if(flip){c.translate(cx,0);c.scale(-1,1);c.drawImage(im,-w/2,bottom-h,w,h)}else c.drawImage(im,cx-w/2,bottom-h,w,h);c.restore();return true}
 ["lad","lass","scottie"].forEach(h=>["idle","attack","hit","win"].forEach(p=>spriteImg(h+"_"+p)));
 ["tome","scarcity","shifter","surplus","midpoint","wedge","monopolist","externality","deflator","moocher","benchwarmer","cashbox","dropoff"].forEach(b=>["idle","cast","hit","dead"].forEach(p=>spriteImg(b+"_"+p)));
+const WALK={};["lad","lass","scottie"].forEach(h=>["down","left","right","up"].forEach(d=>[0,1,2].forEach(f=>{const im=new Image();im.src=`art/walk/${h}_${d}_${f}.png`;WALK[`${h}_${d}_${f}`]=im})));
+const FX={};["poison","slash","crit","shield","rune","heal","chain","chest"].forEach(n=>{const im=new Image();im.src="art/fx/"+n+".png";FX[n]=im});
+function fxSprite(name,x,y,size,ms){const f=$("#fx");if(!f||!FX[name])return;const e=document.createElement("img");e.src=FX[name].src;e.className="fxs";e.style.cssText=`left:${x}%;top:${y}%;width:${size}%;animation-duration:${ms}ms`;f.appendChild(e);setTimeout(()=>e.remove(),ms+50)}
 const PX=6;
 const BOSS_VARIANTS={};
 function bossMaps(id){if(BOSS_VARIANTS[id])return BOSS_VARIANTS[id];const base=BOSS_SPRITES[id];if(!base)return null;
@@ -361,10 +364,10 @@ function fight(){
   <button class="ghost center" id="quit">Flee to campus</button>`;
   window.scrollTo({top:0});wantTrack(isBoss?"boss":"battle");
   mountScene((isBoss||G.session)?G.chapter:null);sceneSet(isBoss?"cast":"idle");
-  if(isBoss){const f=$("#fx");if(f){const e=document.createElement("div");e.className="bossIntro";e.innerHTML=`<span>${esc(G.chapter.name)}</span><small>appears</small>`;f.appendChild(e);setTimeout(()=>e.remove(),2200);SFX.bossIn()}}
+  if(isBoss){const f=$("#fx");if(f){const e=document.createElement("div");e.className="bossIntro";e.innerHTML=`<span>${esc(G.chapter.name)}</span><small>appears</small>`;f.appendChild(e);fxSprite("rune",38,55,44,2200);setTimeout(()=>e.remove(),2200);SFX.bossIn()}}
   $("#quit").onclick=home;
   const sk=$("#useSkip");if(sk)sk.onclick=()=>{S.items.skip--;save("items",S.items);G.log.push("⬜");G.i++;SFX.click();toast("Skipped");G.i>G.n?result():fight()};
-  const sc=$("#useSecond");if(sc)sc.onclick=()=>{S.items.second--;save("items",S.items);G.hearts++;G.usedSecond=true;SFX.loot();toast("Heart restored");sc.remove();document.querySelector(".hearts").outerHTML=heartsHTML(G.hearts)};
+  const sc=$("#useSecond");if(sc)sc.onclick=()=>{S.items.second--;save("items",S.items);G.hearts++;G.usedSecond=true;SFX.loot();fxSprite("heal",6,20,32,900);toast("Heart restored");sc.remove();document.querySelector(".hearts").outerHTML=heartsHTML(G.hearts)};
   const ans=$("#answer");
   if(q.type==="mc"){ans.className="opts";ans.innerHTML=q.opts.map((o,k)=>`<button class="opt" data-k="${k}"><span class="key">${"ABCD"[k]}</span><span>${esc(o)}</span></button>`).join("");ans.querySelectorAll("button").forEach(b=>b.onclick=()=>answer(+b.dataset.k))}
   else if(q.type==="two"){ans.className="two";ans.innerHTML=q.opts.map((o,k)=>`<button class="opt" data-k="${k}">${k===0?"◀ ":""}${esc(o)}${k===1?" ▶":""}</button>`).join("");ans.querySelectorAll("button").forEach(b=>b.onclick=()=>answer(+b.dataset.k));
@@ -389,7 +392,7 @@ function answer(v){
     G.combo++;G.best=Math.max(G.best,G.combo);const critWin=q.type==="num"?10:q.type==="two"?4:6;crit=secs<critWin;
     const speed=crit?2.0:secs<critWin*2?1.3:1.0,base=isBoss?35:20;
     dealt=Math.round(base*speed*(1+0.1*(G.combo-1)));
-    S.seen=S.seen||{};S.seen[q.id]=(S.seen[q.id]||0)+1;save("seen",S.seen);G.tome=Math.max(isBoss?0:1,G.tome-dealt);G.dmg+=dealt;G.log.push("🟩");sceneSet("hit");Scene.heroPose="attack";setTimeout(()=>{if(Scene.heroPose==="attack")Scene.heroPose="idle"},700);burst(crit?50:24,crit?"#ffffff":"#ffb347");
+    S.seen=S.seen||{};S.seen[q.id]=(S.seen[q.id]||0)+1;save("seen",S.seen);G.tome=Math.max(isBoss?0:1,G.tome-dealt);G.dmg+=dealt;G.log.push("🟩");sceneSet("hit");fxSprite(crit?"crit":"slash",56,25,crit?44:34,crit?700:450);Scene.heroPose="attack";setTimeout(()=>{if(Scene.heroPose==="attack")Scene.heroPose="idle"},700);burst(crit?50:24,crit?"#ffffff":"#ffb347");
     if(crit){G.crits++;Scene.crit=12;Scene.shake=18;fx("CRITICAL −"+dealt,"crit");SFX.crit()}else{fx("−"+dealt,"hit");SFX.hit()}
     taunt=SULK[Math.floor(Math.random()*SULK.length)];
     if(G.tome<=0){setTimeout(()=>{sceneSet("dead");burst(60,"#7bdc5a");SFX.death()},300)}
@@ -445,7 +448,7 @@ function result(){
   ${G.log.includes("🟥")?`<div class="card"><p class="eyebrow">The Tome beat you on</p>${[...G.qs,G.boss].filter((q,k)=>G.log[k]==="🟥").map(q=>`<p class="miss"><b>${esc(q.term||q.spell)}</b> <span class="muted small">${esc(SESSIONS[q.s])}</span></p>`).join("")}<p class="muted small">These show up more often next time.</p></div>`:""}
   <button class="ghost center" id="again"><span class="lbl">${G.practice?"FIGHT AGAIN":"PRACTICE FIGHT"}</span></button>
   <button class="ghost center" id="home"><span class="lbl">BACK TO CAMPUS</span></button>`;
-  mountScene(G.chapter);Scene.dead=won;Scene.heroPose=won?"win":"hit";if(!won)sceneSet("cast");
+  mountScene(G.chapter);Scene.dead=won;Scene.heroPose=won?"win":"hit";if(loot)setTimeout(()=>fxSprite("chest",40,30,36,1400),600);if(!won)sceneSet("cast");
   if(!S.muted){Music.stop();setTimeout(()=>{Music.play(won?"victory":"defeat",{then:()=>{if(loot)Music.sfx("loot");setTimeout(()=>{if(!G||document.querySelector("#copy"))Music.play("overworld")},loot?900:200)}})},won?400:200)}
   $("#copy").onclick=()=>{const txt=$("#card").textContent;const fb=()=>{const r=document.createRange();r.selectNodeContents($("#card"));const s=getSelection();s.removeAllRanges();s.addRange(r);toast("Select & copy")};try{navigator.clipboard.writeText(txt).then(()=>toast("Copied!")).catch(fb)}catch(e){fb()}};
   $("#again").onclick=()=>start({practice:true});$("#home").onclick=home;
@@ -575,9 +578,12 @@ function campus(){wantTrack("overworld");
     if(target){const dx=target.x-hero.x,dy=target.y-hero.y,d=Math.hypot(dx,dy);if(d<1.5){hero.x=target.x;hero.y=target.y;target=null;save("heroPos",hero);const sp=spotAt(hero.x,hero.y-4);if(sp&&(!atSpot||sp[0]!==atSpot[0])){atSpot=sp;SFX.hit();info()}else if(!sp&&atSpot){atSpot=null;info()}}else{hero.x+=dx/d*1.6;hero.y+=dy/d*1.6;step++;if(step%8===0)SFX.step()}}
     c.setTransform(2,0,0,2,0,0);drawCampus(c,fs,performance.now());
     // hero (facing by direction, 2-frame walk)
+    if(target){const dx=target.x-hero.x,dy=target.y-hero.y;hero.face=Math.abs(dx)>Math.abs(dy)?(dx<0?"left":"right"):(dy<0?"up":"down")}
+    const wf=target?[0,1,0,2][Math.floor(step/5)%4]:0;const wimg=WALK[heroKey()+"_"+(hero.face||"down")+"_"+wf];
     const ms=1.5*heroScale();const bobY=target&&Math.floor(step/6)%2?-1:0;const hx=hero.x-HERO[0].length*ms/2,hy=hero.y-HERO.length*ms+bobY;
-    px(c,hx+2,hero.y-1,HERO[0].length*ms-4,2,CP.shadow);drawMap(c,HERO,hx,hy,ms);
-    if(S.hat&&HATMAPS[S.hat]){const hm=HATMAPS[S.hat];const dog=heroKey()==="scottie";drawMap(c,hm,dog?hx+22*ms:hx+(10-hm[0].length)*.75,dog?hy+ms-hm.length*1.5:hy-hm.length*1.5+(S.hat==="halo"?-3:1.5),1.5)}
+    px(c,hero.x-5,hero.y-1,10,2,CP.shadow);
+    if(wimg&&wimg.complete&&wimg.naturalWidth){const hh=heroKey()==="scottie"?14:22;const ww=wimg.naturalWidth/wimg.naturalHeight*hh;c.drawImage(wimg,hero.x-ww/2,hero.y-hh,ww,hh)}else drawMap(c,HERO,hx,hy,ms);
+    
     if(target){c.fillStyle="rgba(255,211,107,.8)";c.fillRect(target.x-2,target.y-2,4,4)}
     c.setTransform(1,0,0,1,0,0);c.font="8px 'Press Start 2P',monospace";c.textAlign="center";
     Object.entries(CAMPUS.spots).forEach(([s,sp])=>{const lab=sp.label.toUpperCase();const w=c.measureText(lab).width+8;c.fillStyle="rgba(0,0,0,.6)";c.fillRect(sp.x*2-w/2,sp.y*2+6,w,12);c.fillStyle=fs.has(+s)?"#9fd8aa":"#fff";c.fillText(lab,sp.x*2,sp.y*2+15)});

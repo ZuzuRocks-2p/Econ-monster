@@ -337,7 +337,7 @@ let installEvt=null;window.addEventListener("beforeinstallprompt",e=>{e.preventD
 function standalone(){return window.matchMedia("(display-mode: standalone)").matches||navigator.standalone===true}
 function a2hsHTML(){if(standalone()||load("a2hsOff",false))return "";const visits=load("visits",0);if(visits<2)return "";
   const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
-  return `<div class="card a2hs"><p class="eyebrow">Put it on your home screen</p><p class="small">${ios?"Tap <b>Share</b> (the box with the arrow) then <b>Add to Home Screen</b>. Full screen, no browser bar.":installEvt?"One tap installs it like an app.":"Open the browser menu (⋮) and tap <b>Add to Home screen</b>."}</p><div class="two">${!ios&&installEvt?`<button class="big center" id="a2hsGo"><span class="lbl">INSTALL</span></button>`:""}<button class="ghost center" id="a2hsNo"><span class="lbl">NOT NOW</span></button></div></div>`}
+  return `<div class="card a2hs"><p class="eyebrow">Put it on your home screen</p><p class="small">${ios?"Tap <b>Share</b> (the box with the arrow) then <b>Add to Home Screen</b>. Full screen, no browser bar.":installEvt?"One tap installs it like an app.":"Open the browser menu (⋮) and tap <b>Add to Home screen</b>."}</p><div class="${!ios&&installEvt?"two":""}">${!ios&&installEvt?`<button class="big center" id="a2hsGo"><span class="lbl">INSTALL</span></button>`:""}<button class="ghost center" id="a2hsNo"><span class="lbl">NOT NOW</span></button></div></div>`}
 function a2hsWire(){const g=$("#a2hsGo");if(g)g.onclick=async()=>{if(!installEvt)return;installEvt.prompt();const r=await installEvt.userChoice;installEvt=null;if(r&&r.outcome==="accepted")save("a2hsOff",true);home()};const n=$("#a2hsNo");if(n)n.onclick=()=>{save("a2hsOff",true);home()}}
 save("visits",load("visits",0)+1);
 
@@ -374,17 +374,17 @@ function home(){
     <div><div class="n">${Math.round(S.totalDmg)}</div><div class="l">Damage</div></div>
     <div><div class="n rk">${rankFor(S.totalDmg)}</div><div class="l">Rank</div></div>
   </div>
-  ${a2hsHTML()}
   ${S.title?`<p class="ptitle">${S.hat?HATS[S.hat]+" ":""}${esc(S.name||"You")}, <em>${esc(S.title)}</em></p>`:""}
   <button class="big pulse" id="startDaily"><span class="lbl">${played?"REPLAY QUEST #"+dn:"\u25b6 DAILY QUEST #"+dn}</span><span class="sub">5 questions + chapter boss • Sessions 1–${TAUGHT}</span></button>
+  ${a2hsHTML()}
   <button class="ghost" id="weeklyBtn"><span class="lbl">WEEKLY BOSS</span><span class="sub">Team HP ${Math.max(0,WEEK_MAX-wt.total).toLocaleString()} / ${WEEK_MAX.toLocaleString()} • ${wt.rows.length} fighter${wt.rows.length===1?"":"s"}${myRank(wt)}</span></button>
   <div class="two"><button class="ghost center" id="mapBtn"><span class="lbl">CAMPUS MAP</span></button><button class="ghost center" id="rivalBtn"><span class="lbl">RIVAL</span></button></div>
   <button class="ghost center" id="storyBtn"><span class="lbl">\ud83d\udcd6 THE STORY${load("storySeen",false)?"":" \u2022 NEW"}</span></button>
   <div class="two"><button class="ghost center" id="startPractice"><span class="lbl">PRACTICE</span></button><button class="ghost center" id="bagBtn"><span class="lbl">BAG (${(S.items.skip||0)+(S.items.second||0)})</span></button></div>
-  <div class="field"><label class="eyebrow" for="pname">Game name (a nickname — not your real name)</label><input type="text" id="pname" value="${esc(S.name)}" placeholder="First name" maxlength="20"></div>
+  <div class="field"><label class="eyebrow" for="pname">Game name (a nickname — not your real name)</label><input type="text" id="pname" value="${esc(S.name)}" placeholder="e.g. ScotRocket" maxlength="20"></div>
   <div class="field"><label class="eyebrow" for="team">Team code from your coach</label><input type="text" id="team" value="${esc(S.team)}" placeholder="HHS-ECON" maxlength="16"></div>
   <button class="ghost center" id="coachBtn"><span class="lbl">COACH MODE</span></button>
-  <p class="footer">Questions from DemiDec Section Exams 1–3 and the session case studies.</p>`;
+  <p class="footer">Questions from DemiDec Section Exams 1–5 and the session case studies.</p>`;
   wantTrack("overworld");
   $("#startDaily").onclick=()=>{SFX.click();start({practice:false})};$("#startPractice").onclick=()=>{SFX.click();start({practice:true})};
   $("#weeklyBtn").onclick=()=>{SFX.click();weekly()};$("#storyBtn").onclick=()=>{SFX.click();story()};$("#mapBtn").onclick=()=>{SFX.click();campus()};$("#rivalBtn").onclick=()=>{SFX.click();rival()};$("#bagBtn").onclick=()=>{SFX.click();bag()};
@@ -501,7 +501,7 @@ function result(){
   <div class="taunt ${won?"":"cast"}">“${esc(won?"I’ll be back in the next unit.":TAUNTS[(dn+G.dmg)%TAUNTS.length])}”</div>
   <div class="stats"><div><div class="n">${G.dmg}</div><div class="l">Damage</div></div><div><div class="n">${mm}:${ss}</div><div class="l">Time</div></div><div><div class="n">${correct}/${total}</div><div class="l">Correct</div></div></div>
   <div class="stats"><div><div class="n">x${G.best}</div><div class="l">Best combo</div></div><div><div class="n">${G.crits}</div><div class="l">Crits</div></div><div><div class="n rk">${rankFor(S.totalDmg)}</div><div class="l">Rank</div></div></div>
-  <div class="card"><p class="eyebrow">Share card</p><div class="share" id="card">${esc(card)}</div><button class="big center" id="copy"><span class="lbl">COPY FOR GROUP CHAT</span></button></div>
+  <div class="card"><p class="eyebrow">Share card</p><div class="share" id="card">${esc(card)}</div><button class="big center" id="copy"><span class="lbl">COPY SHARE CARD</span></button></div>
   ${G.log.includes("🟥")?`<div class="card"><p class="eyebrow">The Tome beat you on</p>${[...G.qs,G.boss].filter((q,k)=>G.log[k]==="🟥").map(q=>`<p class="miss"><b>${esc(q.term||q.spell)}</b> <span class="muted small">${esc(SESSIONS[q.s])}</span></p>`).join("")}<p class="muted small">These show up more often next time.</p></div>`:""}
   <button class="ghost center" id="again"><span class="lbl">${G.practice?"FIGHT AGAIN":"PRACTICE FIGHT"}</span></button>
   <button class="ghost center" id="home"><span class="lbl">BACK TO CAMPUS</span></button>`;
@@ -546,7 +546,7 @@ function coach(){
   const label=q=>{const t=q.term||q.spell||"";const pg=(q.src||"").match(/RG p\.([\d;, ]+)/);if(SESSIONS[q.s]===t)return "RG p."+(pg?pg[1].trim():"?");return t};
   const review=top.slice(0,6).map(x=>label(x.q)+(x.q.src?" ("+x.q.src.replace(/DemiDec /,"")+")":"")).join("\n");
   app.innerHTML=`<header class="title"><p class="eyebrow">Coach mode • ${dbReady?(S.team?"team "+esc(S.team):"all players"):"this phone"+(load("coachImports",[]).length?" + "+load("coachImports",[]).length+" imported":"")}</p><h1>Where the Tome<br>is winning</h1><div class="tartan" aria-hidden="true"></div></header>
-  <div class="card"><p class="eyebrow">Today’s review list</p>${top.length?`<ol class="review">${top.slice(0,6).map(x=>`<li><b>${esc(x.q.term||x.q.spell)}</b> <span class="muted small">${esc(SESSIONS[x.q.s])} • missed ${x.n}× • ${x.rate}% miss rate</span><div class="small">${esc(x.q.q)}</div></li>`).join("")}</ol><div class="two"><button class="big center" id="copyReview"><span class="lbl">COPY REVIEW</span></button><button class="ghost center" id="csvBtn"><span class="lbl">COPY CSV</span></button></div>`:"<p class='muted'>No misses logged yet. Play a quest or import a student code below.</p>"}</div>
+  <div class="card"><p class="eyebrow">Today’s review list</p>${top.length?`<ol class="review">${top.slice(0,6).map(x=>`<li><b>${esc(x.q.term||x.q.spell)}</b> <span class="muted small">${esc(SESSIONS[x.q.s])} • missed ${x.n}× • ${x.rate}% miss rate</span><div class="small">${esc(x.q.q)}</div></li>`).join("")}</ol><div class="two"><button class="big center" id="copyReview"><span class="lbl">COPY REVIEW</span></button><button class="ghost center" id="csvBtn"><span class="lbl">COPY CSV</span></button></div>`:`<p class='muted'>No misses logged yet.${dbReady?" They show up here as the team plays.":" Play a quest or import a student code below."}</p>`}</div>
   <div class="card"><p class="eyebrow">Accuracy by session</p>${sess.map(x=>`<div class="srow"><span class="sn">${x.s}. ${esc(x.name)}</span><div class="sbar"><i style="width:${x.acc==null?0:x.acc}%" class="${x.acc!=null&&x.acc<70?"low":""}"></i></div><span class="sv">${x.acc==null?"—":x.acc+"%"}<small> ${x.seen}</small></span></div>`).join("")}<p class="muted small">Bar = correct rate. Small number = attempts.</p></div>
   <div class="card"><p class="eyebrow">Roster • week of ${wk.slice(4,6)}/${wk.slice(6)}</p>${people.map(p=>`<div class="rrow"><span class="pos">${p.days>2?"💤":"⚔️"}</span><span class="rn">${HEROES[p.hero]?HEROES[p.hero].icon+" ":""}${esc(p.name)} <small class="muted">🔥${p.streak}${p.days>0?" • "+p.days+"d ago":""}</small></span><span class="rd">${p.wkDmg.toLocaleString()}</span></div>`).join("")}<p class="muted small">💤 = no fight in 3+ days.</p></div>
   ${dbReady?"":`<div class="card"><p class="eyebrow">Pool without Firebase</p><p class="small">Students tap <b>Bag → Copy my coach code</b> and send it to you. Paste codes here.</p><input type="text" id="imp" placeholder="EMC1...." autocapitalize="off"><div class="two"><button class="ghost center" id="impBtn"><span class="lbl">IMPORT</span></button><button class="ghost center" id="impClear"><span class="lbl">CLEAR IMPORTS</span></button></div><p class="muted small" id="impMsg"></p></div>`}
@@ -671,12 +671,12 @@ function bag(){wantTrack("overworld");
   <div class="card"><p class="eyebrow">Hats</p>${S.hats.length?`<div class="chips">${S.hats.map(h=>`<button class="chip ${S.hat===h?"on":""}" data-h="${h}">${icon(h,"sm")} ${h}</button>`).join("")}<button class="chip ${S.hat?"":"on"}" data-h="">none</button></div>`:"<p class='muted'>None yet.</p>"}</div>
   <div class="card"><p class="eyebrow">Titles</p>${S.titles.length?`<div class="chips">${S.titles.map(t=>`<button class="chip ${S.title===t?"on":""}" data-t="${esc(t)}">${esc(t)}</button>`).join("")}</div>`:"<p class='muted'>None yet.</p>"}</div>
   <div class="card"><p class="eyebrow">Save code • ${dbReady?"synced to the cloud":"cloud off, saved on this phone"}</p><p class="code" id="saveCode">${esc(saveCode())}</p><p class="muted small">This code is your save. Copy it somewhere safe. Type it into a new phone to pick up where you left off.</p><button class="ghost center" id="copyCode"><span class="lbl">COPY SAVE CODE</span></button>${dbReady?'<div class="field"><label class="eyebrow" for="restore">Load a save from another phone</label><input type="text" id="restore" placeholder="SCOT-XXXX-XXXX-XXXX" autocapitalize="characters" autocomplete="off"></div><button class="ghost center" id="restoreBtn"><span class="lbl">LOAD SAVE</span></button><p class="muted small" id="restoreMsg"></p>':""}</div>
-  <div class="card"><p class="eyebrow">For your coach</p><button class="ghost center" id="coachCode"><span class="lbl">COPY MY COACH CODE</span></button><p class="muted small">Sends your misses and streak, nothing else.</p></div>
+  ${dbReady?"":`<div class="card"><p class="eyebrow">For your coach</p><button class="ghost center" id="coachCode"><span class="lbl">COPY MY COACH CODE</span></button><p class="muted small">Sends your misses and streak, nothing else.</p></div>`}
   <button class="ghost center" id="home"><span class="lbl">BACK TO CAMPUS</span></button>`;
   $("#home").onclick=home;
   $("#copyCode").onclick=()=>{try{navigator.clipboard.writeText(saveCode()).then(()=>toast("Copied")).catch(()=>toast("Copy failed"))}catch(e){toast("Copy failed")}};
   const rb=$("#restoreBtn");if(rb)rb.onclick=async()=>{rb.disabled=true;const err=await restoreCode($("#restore").value);if(err){$("#restoreMsg").textContent=err;rb.disabled=false}else{SFX.loot();toast("Save loaded");home()}};
-  $("#coachCode").onclick=()=>{const c=exportCode();try{navigator.clipboard.writeText(c).then(()=>toast("Copied")).catch(()=>toast("Copy failed"))}catch(e){toast("Copy failed")}};
+  const cc=$("#coachCode");if(cc)cc.onclick=()=>{const c=exportCode();try{navigator.clipboard.writeText(c).then(()=>toast("Copied")).catch(()=>toast("Copy failed"))}catch(e){toast("Copy failed")}};
   document.querySelectorAll("[data-h]").forEach(b=>b.onclick=()=>{S.hat=b.dataset.h;save("hat",S.hat);SFX.click();bag()});
   document.querySelectorAll("[data-hero]").forEach(b=>b.onclick=()=>{setHero(b.dataset.hero);SFX.click();bag()});
   document.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{S.title=b.dataset.t;save("title",S.title);SFX.click();bag()});

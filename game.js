@@ -37,7 +37,7 @@ function load(k,d){try{const v=localStorage.getItem("econ."+k);return v==null?d:
 function save(k,v){try{localStorage.setItem("econ."+k,JSON.stringify(v))}catch(e){}}
 let S={seen:load("seen",{}),streak:load("streak",0),lastDay:load("lastDay",null),best:load("best",{}),missed:load("missed",{}),totalDmg:load("totalDmg",0),team:load("team",""),name:load("name",""),
   wins:load("wins",{}),titles:load("titles",[]),hats:load("hats",[]),hat:load("hat",""),title:load("title",""),items:load("items",{skip:0,second:0}),escaped:load("escaped",null),recapture:load("recapture",0),muted:load("muted",false),weekLocal:load("weekLocal",{})};
-function saveAll(){for(const k of ["seen","streak","lastDay","best","missed","totalDmg","team","name","wins","titles","hats","hat","title","items","escaped","recapture","muted","weekLocal"])save(k,S[k])}
+function saveAll(quiet){for(const k of ["seen","streak","lastDay","best","missed","totalDmg","team","name","wins","titles","hats","hat","title","items","escaped","recapture","muted","weekLocal"])save(k,S[k]);if(!quiet&&typeof cloudPush==="function")cloudPush()}
 
 function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 function dayKey(d=new Date()){return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate()}
@@ -173,7 +173,7 @@ const HEROES={
 "...kkk..kkk..kkk.kkk................"]}
 };
 let HERO=HEROES[load("hero","lad")]?HEROES[load("hero","lad")].map:HEROES.lad.map;
-function setHero(k){if(!HEROES[k])return;save("hero",k);HERO=HEROES[k].map}
+function setHero(k){if(!HEROES[k])return;save("hero",k);HERO=HEROES[k].map;if(typeof cloudPush==="function")cloudPush()}
 function heroKey(){const k=load("hero","lad");return HEROES[k]?k:"lad"}
 function heroScale(){return HEROES[heroKey()].scale||1}
 const HATMAPS={crown:["y.y.y.y","yyyyyyy"],wizard:["...j...","..jjj..",".jjjjj.","jjjjjjj"],cap:["..rrrr.",".rrrrrr","rrrrrrrr"],halo:["yyyyyyy","y.....y"]};
@@ -274,22 +274,34 @@ function loop(){
   Scene.parts=Scene.parts.filter(p=>p.l>0);Scene.parts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.25;p.l--;c.fillStyle=p.col;c.globalAlpha=Math.min(1,p.l/15);c.fillRect(Math.floor(p.x/3)*3,Math.floor(p.y/3)*3,4,4)});c.globalAlpha=1;
 }
 
-// ---------- SHARED STATE (weekly boss) ----------
-let DB=null,USER=null,UID=null,dbReady=false,roster=[],unsubRoster=null;
+// ---------- CLOUD SAVE + TEAM (Firebase, no personal data) ----------
+// Identity = a random save code kept on the phone. No email, no login, no real names required.
+let DB=null,UID=null,dbReady=false,roster=[],unsubRoster=null,cloudTimer=null;
+const CLOUD_KEYS=["streak","lastDay","best","totalDmg","team","name","wins","titles","hats","hat","title","items","escaped","recapture"];
+function newCode(){const A="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";let s="";const r=crypto.getRandomValues(new Uint8Array(12));for(let i=0;i<12;i++)s+=A[r[i]%A.length];return "SCOT-"+s.slice(0,4)+"-"+s.slice(4,8)+"-"+s.slice(8)}
+function saveCode(){let c=load("saveCode","");if(!c){c=newCode();save("saveCode",c)}return c}
+function cleanCode(s){return String(s||"").toUpperCase().replace(/[^A-Z0-9]/g,"").replace(/^SCOT/,"").replace(/(.{4})(.{4})(.{4})/,"SCOT-$1-$2-$3")}
+function cloudDoc(){return {v:1,name:S.name||"",team:S.team||"",hero:heroKey(),hat:S.hat||"",title:S.title||"",streak:S.streak,lastDay:S.lastDay,best:S.best||{},totalDmg:S.totalDmg,wins:S.wins||{},titles:S.titles||[],hats:S.hats||[],items:S.items||{},escaped:S.escaped||null,recapture:S.recapture||0,weeks:S.weekLocal||{},
+  missed:Object.fromEntries(Object.entries(S.missed||{}).sort((a,b)=>b[1]-a[1]).slice(0,40)),seen:Object.fromEntries(Object.entries(S.seen||{}).sort((a,b)=>b[1]-a[1]).slice(0,80)),updated:Date.now()}}
+function applyCloud(d){if(!d)return;CLOUD_KEYS.forEach(k=>{if(d[k]!==undefined&&d[k]!==null)S[k]=d[k]});S.weekLocal=d.weeks||{};S.missed=d.missed||{};S.seen=d.seen||{};if(d.hero)save("hero",d.hero);saveAll(true);save("weekLocal",S.weekLocal);save("synced",d.updated||Date.now())}
+function cloudPush(){if(!dbReady)return;clearTimeout(cloudTimer);cloudTimer=setTimeout(async()=>{try{const d=cloudDoc();await DB.doc("players/"+saveCode()).set(d);save("synced",d.updated)}catch(e){console.warn("cloud push",e)}},800)}
+async function cloudPull(){if(!dbReady)return false;try{const snap=await DB.doc("players/"+saveCode()).get();if(!snap.exists)return false;const d=snap.data();if((d.updated||0)>load("synced",0)){applyCloud(d);return true}}catch(e){}return false}
+async function restoreCode(code){const c=cleanCode(code);if(!/^SCOT-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(c))return "That code is not the right shape.";if(!dbReady)return "Not connected. Check your signal and try again.";
+  try{const snap=await DB.doc("players/"+c).get();if(!snap.exists)return "No save found for that code.";save("saveCode",c);save("synced",0);applyCloud(snap.data());watchRoster();return null}catch(e){return "Could not reach the save."}}
+function watchRoster(){if(unsubRoster)unsubRoster();let q=DB.collection("players");if(S.team)q=q.where("team","==",S.team);
+  unsubRoster=q.limit(200).onSnapshot(snap=>{roster=snap.docs.map(x=>Object.assign({id:x.id},x.data()));if(document.getElementById("weekly"))renderWeekly();const wb=document.querySelector("#weeklyBtn .sub");if(wb){const wt=weeklyTotals();wb.textContent="Team HP "+Math.max(0,WEEK_MAX-wt.total).toLocaleString()+" / "+WEEK_MAX.toLocaleString()+" • "+wt.rows.length+" fighter"+(wt.rows.length===1?"":"s")}},()=>{})}
 (async()=>{try{
   if(!window.firebase||!window.FIREBASE_CONFIG||!FIREBASE_CONFIG.apiKey)return;
   firebase.initializeApp(FIREBASE_CONFIG);
   const cred=await firebase.auth().signInAnonymously();UID=cred.user.uid;DB=firebase.firestore();dbReady=true;
-  unsubRoster=DB.collection("hits").onSnapshot(snap=>{roster=snap.docs.map(x=>Object.assign({id:x.id},x.data()));const el=document.getElementById("weekly");if(el)renderWeekly()},()=>{});
-  const el=document.getElementById("weekly");if(el)renderWeekly()}catch(e){console.warn("firebase off",e)}})();
+  const pulled=await cloudPull();if(!pulled)cloudPush();
+  watchRoster();if(!G)home()}catch(e){console.warn("firebase off",e)}})();
 async function postDamage(dmg){
-  const wk=weekId();S.weekLocal[wk]=(S.weekLocal[wk]||0)+dmg;save("weekLocal",S.weekLocal);
-  if(!dbReady)return;
-  try{const ref=DB.doc("hits/"+UID);const snap=await ref.get();const cur=snap.exists?snap.data():{};const weeks=Object.assign({},cur.weeks||{});weeks[wk]=(weeks[wk]||0)+dmg;
-    await ref.set({name:S.name||"Anonymous",team:S.team||"",weeks,hat:S.hat||"",hero:heroKey(),title:S.title||"",updated:Date.now(),streak:S.streak,missed:Object.fromEntries(Object.entries(S.missed).sort((a,b)=>b[1]-a[1]).slice(0,40)),seen:Object.fromEntries(Object.entries(S.seen||{}).sort((a,b)=>b[1]-a[1]).slice(0,80))})}catch(e){}
+  const wk=weekId();S.weekLocal[wk]=(S.weekLocal[wk]||0)+dmg;save("weekLocal",S.weekLocal);cloudPush();
 }
-function weeklyTotals(){const wk=weekId();if(dbReady){const rows=roster.map(r=>({name:r.name||"Someone",dmg:(r.weeks||{})[wk]||0,hat:r.hat||"",hero:r.hero||"",me:r.id===UID})).filter(r=>r.dmg>0).sort((a,b)=>b.dmg-a.dmg);return {rows,total:rows.reduce((a,r)=>a+r.dmg,0)}}
-  const me=S.weekLocal[wk]||0;return {rows:me?[{name:S.name||"You",dmg:me,hat:S.hat,hero:heroKey(),me:true}]:[],total:me}}
+function weeklyTotals(){const wk=weekId();const me=saveCode();if(dbReady){const rows=roster.map(r=>({name:r.name||"Someone",dmg:(r.weeks||{})[wk]||0,hat:r.hat||"",hero:r.hero||"",me:r.id===me})).filter(r=>r.dmg>0).sort((a,b)=>b.dmg-a.dmg);
+    if(!rows.some(r=>r.me)&&(S.weekLocal[wk]||0)>0)rows.push({name:S.name||"You",dmg:S.weekLocal[wk],hat:S.hat,hero:heroKey(),me:true});return {rows,total:rows.reduce((a,r)=>a+r.dmg,0)}}
+  const mine=S.weekLocal[wk]||0;return {rows:mine?[{name:S.name||"You",dmg:mine,hat:S.hat,hero:heroKey(),me:true}]:[],total:mine}}
 
 // ---------- UI ----------
 var G=null,timerId=null;
@@ -330,16 +342,16 @@ function home(){
   <div class="two"><button class="ghost center" id="mapBtn"><span class="lbl">CAMPUS MAP</span></button><button class="ghost center" id="rivalBtn"><span class="lbl">RIVAL</span></button></div>
   <button class="ghost center" id="storyBtn"><span class="lbl">\ud83d\udcd6 THE STORY${load("storySeen",false)?"":" \u2022 NEW"}</span></button>
   <div class="two"><button class="ghost center" id="startPractice"><span class="lbl">PRACTICE</span></button><button class="ghost center" id="bagBtn"><span class="lbl">BAG (${(S.items.skip||0)+(S.items.second||0)})</span></button></div>
-  <div class="field"><label class="eyebrow" for="pname">Your name (shows on the team roster)</label><input type="text" id="pname" value="${esc(S.name)}" placeholder="First name" maxlength="20"></div>
-  <div class="field"><label class="eyebrow" for="team">Team code (prefixes share cards)</label><input type="text" id="team" value="${esc(S.team)}" placeholder="HHS-ECON" maxlength="16"></div>
+  <div class="field"><label class="eyebrow" for="pname">Game name (a nickname — not your real name)</label><input type="text" id="pname" value="${esc(S.name)}" placeholder="First name" maxlength="20"></div>
+  <div class="field"><label class="eyebrow" for="team">Team code from your coach</label><input type="text" id="team" value="${esc(S.team)}" placeholder="HHS-ECON" maxlength="16"></div>
   <button class="ghost center" id="coachBtn"><span class="lbl">COACH MODE</span></button>
   <p class="footer">Questions from DemiDec Section Exams 1–3 and the session case studies.</p>`;
   wantTrack("overworld");
   $("#startDaily").onclick=()=>{SFX.click();start({practice:false})};$("#startPractice").onclick=()=>{SFX.click();start({practice:true})};
   $("#weeklyBtn").onclick=()=>{SFX.click();weekly()};$("#storyBtn").onclick=()=>{SFX.click();story()};$("#mapBtn").onclick=()=>{SFX.click();campus()};$("#rivalBtn").onclick=()=>{SFX.click();rival()};$("#bagBtn").onclick=()=>{SFX.click();bag()};
   $("#coachBtn").onclick=()=>{SFX.click();coach()};
-  $("#pname").oninput=e=>{S.name=e.target.value.trim();save("name",S.name)};
-  $("#team").oninput=e=>{S.team=e.target.value.trim();save("team",S.team)};
+  $("#pname").oninput=e=>{S.name=e.target.value.trim();save("name",S.name);cloudPush()};
+  $("#team").oninput=e=>{S.team=e.target.value.trim().toUpperCase();e.target.value=S.team;save("team",S.team);cloudPush();if(dbReady)watchRoster()};
 }
 
 let attractT=null;function attract(){clearInterval(attractT);attractT=setInterval(()=>{if(!G&&Scene.cv&&Scene.cv.isConnected){sceneSet("cast");setTimeout(()=>{if(!G)sceneSet("idle")},1200)}else clearInterval(attractT)},5000)}
@@ -493,7 +505,7 @@ function coach(){
   const people=rows.map(r=>({...r,wkDmg:r.weeks[wk]||0,days:Math.floor((now-r.updated)/86400000)})).sort((a,b)=>b.wkDmg-a.wkDmg);
   const label=q=>{const t=q.term||q.spell||"";const pg=(q.src||"").match(/RG p\.([\d;, ]+)/);if(SESSIONS[q.s]===t)return "RG p."+(pg?pg[1].trim():"?");return t};
   const review=top.slice(0,6).map(x=>label(x.q)+(x.q.src?" ("+x.q.src.replace(/DemiDec /,"")+")":"")).join("\n");
-  app.innerHTML=`<header class="title"><p class="eyebrow">Coach mode • ${dbReady?"team pooled":"this phone"+(load("coachImports",[]).length?" + "+load("coachImports",[]).length+" imported":"")}</p><h1>Where the Tome<br>is winning</h1><div class="tartan" aria-hidden="true"></div></header>
+  app.innerHTML=`<header class="title"><p class="eyebrow">Coach mode • ${dbReady?(S.team?"team "+esc(S.team):"all players"):"this phone"+(load("coachImports",[]).length?" + "+load("coachImports",[]).length+" imported":"")}</p><h1>Where the Tome<br>is winning</h1><div class="tartan" aria-hidden="true"></div></header>
   <div class="card"><p class="eyebrow">Today’s review list</p>${top.length?`<ol class="review">${top.slice(0,6).map(x=>`<li><b>${esc(x.q.term||x.q.spell)}</b> <span class="muted small">${esc(SESSIONS[x.q.s])} • missed ${x.n}× • ${x.rate}% miss rate</span><div class="small">${esc(x.q.q)}</div></li>`).join("")}</ol><div class="two"><button class="big center" id="copyReview"><span class="lbl">COPY REVIEW</span></button><button class="ghost center" id="csvBtn"><span class="lbl">COPY CSV</span></button></div>`:"<p class='muted'>No misses logged yet. Play a quest or import a student code below.</p>"}</div>
   <div class="card"><p class="eyebrow">Accuracy by session</p>${sess.map(x=>`<div class="srow"><span class="sn">${x.s}. ${esc(x.name)}</span><div class="sbar"><i style="width:${x.acc==null?0:x.acc}%" class="${x.acc!=null&&x.acc<70?"low":""}"></i></div><span class="sv">${x.acc==null?"—":x.acc+"%"}<small> ${x.seen}</small></span></div>`).join("")}<p class="muted small">Bar = correct rate. Small number = attempts.</p></div>
   <div class="card"><p class="eyebrow">Roster • week of ${wk.slice(4,6)}/${wk.slice(6)}</p>${people.map(p=>`<div class="rrow"><span class="pos">${p.days>2?"💤":"⚔️"}</span><span class="rn">${HEROES[p.hero]?HEROES[p.hero].icon+" ":""}${esc(p.name)} <small class="muted">🔥${p.streak}${p.days>0?" • "+p.days+"d ago":""}</small></span><span class="rd">${p.wkDmg.toLocaleString()}</span></div>`).join("")}<p class="muted small">💤 = no fight in 3+ days.</p></div>
@@ -613,9 +625,12 @@ function bag(){wantTrack("overworld");
   <div class="card"><p class="eyebrow">Hero</p><div class="chips">${Object.entries(HEROES).map(([k,h])=>`<button class="chip ${heroKey()===k?"on":""}" data-hero="${k}"><img class="icon sm" src="art/sprites/${k}_idle.png" alt=""> ${esc(h.name)}</button>`).join("")}</div></div>
   <div class="card"><p class="eyebrow">Hats</p>${S.hats.length?`<div class="chips">${S.hats.map(h=>`<button class="chip ${S.hat===h?"on":""}" data-h="${h}">${icon(h,"sm")} ${h}</button>`).join("")}<button class="chip ${S.hat?"":"on"}" data-h="">none</button></div>`:"<p class='muted'>None yet.</p>"}</div>
   <div class="card"><p class="eyebrow">Titles</p>${S.titles.length?`<div class="chips">${S.titles.map(t=>`<button class="chip ${S.title===t?"on":""}" data-t="${esc(t)}">${esc(t)}</button>`).join("")}</div>`:"<p class='muted'>None yet.</p>"}</div>
+  <div class="card"><p class="eyebrow">Save code • ${dbReady?"synced to the cloud":"cloud off, saved on this phone"}</p><p class="code" id="saveCode">${esc(saveCode())}</p><p class="muted small">This code is your save. Copy it somewhere safe. Type it into a new phone to pick up where you left off.</p><button class="ghost center" id="copyCode"><span class="lbl">COPY SAVE CODE</span></button>${dbReady?'<div class="field"><label class="eyebrow" for="restore">Load a save from another phone</label><input type="text" id="restore" placeholder="SCOT-XXXX-XXXX-XXXX" autocapitalize="characters" autocomplete="off"></div><button class="ghost center" id="restoreBtn"><span class="lbl">LOAD SAVE</span></button><p class="muted small" id="restoreMsg"></p>':""}</div>
   <div class="card"><p class="eyebrow">For your coach</p><button class="ghost center" id="coachCode"><span class="lbl">COPY MY COACH CODE</span></button><p class="muted small">Sends your misses and streak, nothing else.</p></div>
   <button class="ghost center" id="home"><span class="lbl">BACK TO CAMPUS</span></button>`;
   $("#home").onclick=home;
+  $("#copyCode").onclick=()=>{try{navigator.clipboard.writeText(saveCode()).then(()=>toast("Copied")).catch(()=>toast("Copy failed"))}catch(e){toast("Copy failed")}};
+  const rb=$("#restoreBtn");if(rb)rb.onclick=async()=>{rb.disabled=true;const err=await restoreCode($("#restore").value);if(err){$("#restoreMsg").textContent=err;rb.disabled=false}else{SFX.loot();toast("Save loaded");home()}};
   $("#coachCode").onclick=()=>{const c=exportCode();try{navigator.clipboard.writeText(c).then(()=>toast("Copied")).catch(()=>toast("Copy failed"))}catch(e){toast("Copy failed")}};
   document.querySelectorAll("[data-h]").forEach(b=>b.onclick=()=>{S.hat=b.dataset.h;save("hat",S.hat);SFX.click();bag()});
   document.querySelectorAll("[data-hero]").forEach(b=>b.onclick=()=>{setHero(b.dataset.hero);SFX.click();bag()});

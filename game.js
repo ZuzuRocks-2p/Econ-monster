@@ -5,7 +5,7 @@ const MOCK=["“%s”? Bold. Wrong, but bold.","You chose “%s.” I wrote that
 const SULK=["Lucky guess.","Fine. FINE.","That one wasn’t even on the test.","Who taught you that?","Ow. Rude.","I felt that in my index."];
 const SLOW=["Too slow. The bell rang.","Time is an opportunity cost, child.","I aged a chapter waiting."];
 const RANKS=[[0,"Wee Scot"],[150,"Price Taker"],[400,"Price Maker"],[900,"Invisible Hand"],[1800,"Royal Scot"],[3500,"Tome Slayer"]];
-const SESSIONS={1:"Fundamentals",2:"Demand & Supply",3:"Equilibrium & Surplus",4:"Elasticity",5:"Gov’t Policy",6:"Market Structures",7:"Market Failures",8:"GDP, Prices & Growth",9:"Gains from Trade",10:"Money & Fluctuations",11:"Transportation"};
+const SESSIONS={1:"Fundamentals",2:"Demand & Supply",3:"Equilibrium & Surplus",4:"Elasticity",5:"Gov’t Policy",6:"Market Structures",7:"Market Failures",8:"GDP, Prices & Growth",9:"Jobs & Finance",10:"Money & the Fed",11:"Transportation I",12:"Transportation II",13:"Gains from Trade"};
 // Chapter bosses: one per session, with a palette swap and a signature move the scene renders.
 const CHAPTERS={
  1:{name:"Scarcity",sprite:"scarcity",move:"grow",pal:{P:"#8a5a2a",p:"#6a3f1a",d:"#3a200a"},loc:""},

@@ -289,7 +289,7 @@ async function cloudPull(){if(!dbReady)return false;try{const snap=await DB.doc(
 async function restoreCode(code){const c=cleanCode(code);if(!/^SCOT-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(c))return "That code is not the right shape.";if(!dbReady)return "Not connected. Check your signal and try again.";
   try{const snap=await DB.doc("players/"+c).get();if(!snap.exists)return "No save found for that code.";save("saveCode",c);save("synced",0);applyCloud(snap.data());watchRoster();return null}catch(e){return "Could not reach the save."}}
 function watchRoster(){if(unsubRoster)unsubRoster();let q=DB.collection("players");if(S.team)q=q.where("team","==",S.team);
-  unsubRoster=q.limit(200).onSnapshot(snap=>{roster=snap.docs.map(x=>Object.assign({id:x.id},x.data()));if(document.getElementById("weekly"))renderWeekly();const wb=document.querySelector("#weeklyBtn .sub");if(wb){const wt=weeklyTotals();wb.textContent="Team HP "+Math.max(0,WEEK_MAX-wt.total).toLocaleString()+" / "+WEEK_MAX.toLocaleString()+" • "+wt.rows.length+" fighter"+(wt.rows.length===1?"":"s")}},()=>{})}
+  unsubRoster=q.limit(200).onSnapshot(snap=>{roster=snap.docs.map(x=>Object.assign({id:x.id},x.data()));if(document.getElementById("weekly"))renderWeekly();const wb=document.querySelector("#weeklyBtn .sub");if(wb){const wt=weeklyTotals();wb.textContent="Team HP "+Math.max(0,WEEK_MAX-wt.total).toLocaleString()+" / "+WEEK_MAX.toLocaleString()+" • "+wt.rows.length+" fighter"+(wt.rows.length===1?"":"s")+myRank(wt)}},()=>{})}
 (async()=>{try{
   if(typeof firebase==="undefined"||typeof FIREBASE_CONFIG==="undefined"||!FIREBASE_CONFIG.apiKey)return;
   firebase.initializeApp(FIREBASE_CONFIG);
@@ -299,6 +299,7 @@ function watchRoster(){if(unsubRoster)unsubRoster();let q=DB.collection("players
 async function postDamage(dmg){
   const wk=weekId();S.weekLocal[wk]=(S.weekLocal[wk]||0)+dmg;save("weekLocal",S.weekLocal);cloudPush();
 }
+function myRank(wt){const i=wt.rows.findIndex(r=>r.me);return i<0?"":` • You’re #${i+1} of ${wt.rows.length}`}
 function weeklyTotals(){const wk=weekId();const me=saveCode();if(dbReady){const rows=roster.map(r=>({name:r.name||"Someone",dmg:(r.weeks||{})[wk]||0,hat:r.hat||"",hero:r.hero||"",me:r.id===me})).filter(r=>r.dmg>0).sort((a,b)=>b.dmg-a.dmg);
     if(!rows.some(r=>r.me)&&(S.weekLocal[wk]||0)>0)rows.push({name:S.name||"You",dmg:S.weekLocal[wk],hat:S.hat,hero:heroKey(),me:true});return {rows,total:rows.reduce((a,r)=>a+r.dmg,0)}}
   const mine=S.weekLocal[wk]||0;return {rows:mine?[{name:S.name||"You",dmg:mine,hat:S.hat,hero:heroKey(),me:true}]:[],total:mine}}
@@ -376,7 +377,7 @@ function home(){
   ${a2hsHTML()}
   ${S.title?`<p class="ptitle">${S.hat?HATS[S.hat]+" ":""}${esc(S.name||"You")}, <em>${esc(S.title)}</em></p>`:""}
   <button class="big pulse" id="startDaily"><span class="lbl">${played?"REPLAY QUEST #"+dn:"\u25b6 DAILY QUEST #"+dn}</span><span class="sub">5 questions + chapter boss • Sessions 1–${TAUGHT}</span></button>
-  <button class="ghost" id="weeklyBtn"><span class="lbl">WEEKLY BOSS</span><span class="sub">Team HP ${Math.max(0,WEEK_MAX-wt.total).toLocaleString()} / ${WEEK_MAX.toLocaleString()} • ${wt.rows.length} fighter${wt.rows.length===1?"":"s"}</span></button>
+  <button class="ghost" id="weeklyBtn"><span class="lbl">WEEKLY BOSS</span><span class="sub">Team HP ${Math.max(0,WEEK_MAX-wt.total).toLocaleString()} / ${WEEK_MAX.toLocaleString()} • ${wt.rows.length} fighter${wt.rows.length===1?"":"s"}${myRank(wt)}</span></button>
   <div class="two"><button class="ghost center" id="mapBtn"><span class="lbl">CAMPUS MAP</span></button><button class="ghost center" id="rivalBtn"><span class="lbl">RIVAL</span></button></div>
   <button class="ghost center" id="storyBtn"><span class="lbl">\ud83d\udcd6 THE STORY${load("storySeen",false)?"":" \u2022 NEW"}</span></button>
   <div class="two"><button class="ghost center" id="startPractice"><span class="lbl">PRACTICE</span></button><button class="ghost center" id="bagBtn"><span class="lbl">BAG (${(S.items.skip||0)+(S.items.second||0)})</span></button></div>

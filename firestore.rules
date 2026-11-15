@@ -13,6 +13,14 @@ service cloud.firestore {
         && request.resource.data.team is string && request.resource.data.team.size() <= 16
         && request.resource.data.updated is number;
     }
+    // One doc per team code holding the coach PIN hash. Created once; never changed by clients.
+    match /teams/{team} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && team.size() <= 16
+        && request.resource.data.keys().hasOnly(['pinHash','created'])
+        && request.resource.data.pinHash is string && request.resource.data.pinHash.size() == 64;
+      allow update, delete: if false;
+    }
     // Old layout, no longer written.
     match /hits/{uid} { allow read, write: if false; }
   }

@@ -303,6 +303,43 @@ function weeklyTotals(){const wk=weekId();const me=saveCode();if(dbReady){const 
     if(!rows.some(r=>r.me)&&(S.weekLocal[wk]||0)>0)rows.push({name:S.name||"You",dmg:S.weekLocal[wk],hat:S.hat,hero:heroKey(),me:true});return {rows,total:rows.reduce((a,r)=>a+r.dmg,0)}}
   const mine=S.weekLocal[wk]||0;return {rows:mine?[{name:S.name||"You",dmg:mine,hat:S.hat,hero:heroKey(),me:true}]:[],total:mine}}
 
+// ---------- COACH PIN ----------
+async function sha(s){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
+async function teamPinHash(){if(!dbReady||!S.team)return load("coachPinLocal",null);try{const s=await DB.doc("teams/"+S.team).get();return s.exists?(s.data().pinHash||null):null}catch(e){return null}}
+async function setTeamPin(pin){const h=await sha(S.team+"|"+pin);if(!dbReady||!S.team){save("coachPinLocal",h);return true}try{await DB.doc("teams/"+S.team).set({pinHash:h,created:Date.now()});return true}catch(e){return false}}
+function coachGate(){wantTrack("overworld");
+  if(load("coachOK","")===(S.team||"local")){coach();return}
+  app.innerHTML=`<header class="title"><p class="eyebrow">Coach mode</p><h1>Coach PIN</h1><div class="tartan" aria-hidden="true"></div></header>
+  <div class="card"><p class="small">${S.team?`Team <b>${esc(S.team)}</b>. `:"No team code set; this PIN only works on this phone. "}Students do not have this PIN.</p>
+  <div class="field"><label class="eyebrow" for="pin">PIN</label><input type="password" id="pin" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="••••"></div>
+  <button class="big center" id="pinGo"><span class="lbl">UNLOCK</span></button><p class="muted small" id="pinMsg"></p></div>
+  <button class="ghost center" id="home"><span class="lbl">BACK</span></button>`;
+  let confirmSet=false;$("#home").onclick=home;
+  $("#pinGo").onclick=async()=>{const pin=$("#pin").value.trim();const msg=$("#pinMsg");if(pin.length<4){msg.textContent="At least 4 characters.";return}
+    const cur=await teamPinHash();
+    if(cur===null){if(!confirmSet){confirmSet=true;msg.textContent="No coach PIN exists yet for this team. Tap UNLOCK again to make this the coach PIN. Remember it: there is no reset.";return}
+      if(!(await setTeamPin(pin))){msg.textContent="Could not save the PIN. Check your signal.";return}save("coachOK",S.team||"local");SFX.loot();coach();return}
+    const h=await sha(S.team+"|"+pin);if(h===cur){save("coachOK",S.team||"local");SFX.loot();coach()}else{msg.textContent="Wrong PIN.";SFX.miss()}};
+}
+// ---------- SEASON ARCHIVE (from each player's weekly history) ----------
+function weekLabel(wk){return wk.slice(4,6)+"/"+wk.slice(6)}
+function seasonRows(rows){const by={};rows.forEach(r=>Object.entries(r.weeks||{}).forEach(([wk,d])=>{by[wk]=by[wk]||{wk,dmg:0,n:0};by[wk].dmg+=d;if(d>0)by[wk].n++}));return Object.values(by).sort((a,b)=>a.wk<b.wk?-1:1)}
+function seasonHTML(rows){const s=seasonRows(rows);if(!s.length)return "";const cur=weekId();const mx=Math.max(WEEK_MAX,...s.map(x=>x.dmg));
+  return `<div class="card"><p class="eyebrow">Season • Tome kills by week</p>${s.map(x=>`<div class="srow"><span class="sn">${weekLabel(x.wk)}${x.wk===cur?" •":""}</span><div class="sbar"><i style="width:${Math.round(x.dmg/mx*100)}%" class="${x.dmg>=WEEK_MAX?"":"low"}"></i></div><span class="sv">${x.dmg>=WEEK_MAX?"☠":""} ${x.dmg.toLocaleString()}<small> ${x.n}</small></span></div>`).join("")}<p class="muted small">☠ = Tome slain that week. Small number = fighters. Bar full = ${WEEK_MAX.toLocaleString()}.</p></div>`}
+// ---------- PRINTABLE SAVE-CODE CARDS ----------
+function codeCards(){const rows=(dbReady&&roster.length?roster:[{id:saveCode(),name:S.name,hero:heroKey(),streak:S.streak}]).slice().sort((a,b)=>(a.name||"").localeCompare(b.name||""));
+  const w=window.open("","_blank");if(!w){toast("Pop-up blocked");return}
+  w.document.write(`<!doctype html><title>Econ Monster save codes</title><style>body{font:14px/1.3 Arial,sans-serif;margin:16px}h1{font-size:18px}.g{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.c{border:2px dashed #2d4f9d;border-radius:8px;padding:10px;break-inside:avoid}.n{font-weight:900;font-size:16px}.k{font:700 18px/1.2 Menlo,monospace;letter-spacing:.06em;margin:6px 0}.s{color:#555;font-size:12px}@media print{button{display:none}}</style>
+  <h1>Escape from the Econ Monster • save codes${S.team?" • "+S.team.replace(/[<>&]/g,""):""}</h1><p class="s">Hand each student their card. Bag → LOAD SAVE on any phone restores their progress. ${new Date().toLocaleDateString()}</p><button onclick="print()">Print</button><div class="g">${rows.map(r=>`<div class="c"><div class="n">${String(r.name||"(no name)").replace(/[<>&]/g,"")}</div><div class="k">${r.id}</div><div class="s">${HEROES[r.hero]?HEROES[r.hero].name:""} • streak ${r.streak||0}</div></div>`).join("")}</div>`);w.document.close()}
+// ---------- ADD TO HOME SCREEN ----------
+let installEvt=null;window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();installEvt=e});
+function standalone(){return window.matchMedia("(display-mode: standalone)").matches||navigator.standalone===true}
+function a2hsHTML(){if(standalone()||load("a2hsOff",false))return "";const visits=load("visits",0);if(visits<2)return "";
+  const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  return `<div class="card a2hs"><p class="eyebrow">Put it on your home screen</p><p class="small">${ios?"Tap <b>Share</b> (the box with the arrow) then <b>Add to Home Screen</b>. Full screen, no browser bar.":installEvt?"One tap installs it like an app.":"Open the browser menu (⋮) and tap <b>Add to Home screen</b>."}</p><div class="two">${!ios&&installEvt?`<button class="big center" id="a2hsGo"><span class="lbl">INSTALL</span></button>`:""}<button class="ghost center" id="a2hsNo"><span class="lbl">NOT NOW</span></button></div></div>`}
+function a2hsWire(){const g=$("#a2hsGo");if(g)g.onclick=async()=>{if(!installEvt)return;installEvt.prompt();const r=await installEvt.userChoice;installEvt=null;if(r&&r.outcome==="accepted")save("a2hsOff",true);home()};const n=$("#a2hsNo");if(n)n.onclick=()=>{save("a2hsOff",true);home()}}
+save("visits",load("visits",0)+1);
+
 // ---------- UI ----------
 var G=null,timerId=null;
 const app=document.getElementById("app");
@@ -336,6 +373,7 @@ function home(){
     <div><div class="n">${Math.round(S.totalDmg)}</div><div class="l">Damage</div></div>
     <div><div class="n rk">${rankFor(S.totalDmg)}</div><div class="l">Rank</div></div>
   </div>
+  ${a2hsHTML()}
   ${S.title?`<p class="ptitle">${S.hat?HATS[S.hat]+" ":""}${esc(S.name||"You")}, <em>${esc(S.title)}</em></p>`:""}
   <button class="big pulse" id="startDaily"><span class="lbl">${played?"REPLAY QUEST #"+dn:"\u25b6 DAILY QUEST #"+dn}</span><span class="sub">5 questions + chapter boss • Sessions 1–${TAUGHT}</span></button>
   <button class="ghost" id="weeklyBtn"><span class="lbl">WEEKLY BOSS</span><span class="sub">Team HP ${Math.max(0,WEEK_MAX-wt.total).toLocaleString()} / ${WEEK_MAX.toLocaleString()} • ${wt.rows.length} fighter${wt.rows.length===1?"":"s"}</span></button>
@@ -349,7 +387,8 @@ function home(){
   wantTrack("overworld");
   $("#startDaily").onclick=()=>{SFX.click();start({practice:false})};$("#startPractice").onclick=()=>{SFX.click();start({practice:true})};
   $("#weeklyBtn").onclick=()=>{SFX.click();weekly()};$("#storyBtn").onclick=()=>{SFX.click();story()};$("#mapBtn").onclick=()=>{SFX.click();campus()};$("#rivalBtn").onclick=()=>{SFX.click();rival()};$("#bagBtn").onclick=()=>{SFX.click();bag()};
-  $("#coachBtn").onclick=()=>{SFX.click();coach()};
+  $("#coachBtn").onclick=()=>{SFX.click();coachGate()};
+  a2hsWire();
   $("#pname").oninput=e=>{S.name=e.target.value.trim();save("name",S.name);cloudPush()};
   $("#team").oninput=e=>{S.team=e.target.value.trim().toUpperCase();e.target.value=S.team;save("team",S.team);cloudPush();if(dbReady)watchRoster()};
 }
@@ -510,8 +549,10 @@ function coach(){
   <div class="card"><p class="eyebrow">Accuracy by session</p>${sess.map(x=>`<div class="srow"><span class="sn">${x.s}. ${esc(x.name)}</span><div class="sbar"><i style="width:${x.acc==null?0:x.acc}%" class="${x.acc!=null&&x.acc<70?"low":""}"></i></div><span class="sv">${x.acc==null?"—":x.acc+"%"}<small> ${x.seen}</small></span></div>`).join("")}<p class="muted small">Bar = correct rate. Small number = attempts.</p></div>
   <div class="card"><p class="eyebrow">Roster • week of ${wk.slice(4,6)}/${wk.slice(6)}</p>${people.map(p=>`<div class="rrow"><span class="pos">${p.days>2?"💤":"⚔️"}</span><span class="rn">${HEROES[p.hero]?HEROES[p.hero].icon+" ":""}${esc(p.name)} <small class="muted">🔥${p.streak}${p.days>0?" • "+p.days+"d ago":""}</small></span><span class="rd">${p.wkDmg.toLocaleString()}</span></div>`).join("")}<p class="muted small">💤 = no fight in 3+ days.</p></div>
   ${dbReady?"":`<div class="card"><p class="eyebrow">Pool without Firebase</p><p class="small">Students tap <b>Bag → Copy my coach code</b> and send it to you. Paste codes here.</p><input type="text" id="imp" placeholder="EMC1...." autocapitalize="off"><div class="two"><button class="ghost center" id="impBtn"><span class="lbl">IMPORT</span></button><button class="ghost center" id="impClear"><span class="lbl">CLEAR IMPORTS</span></button></div><p class="muted small" id="impMsg"></p></div>`}
+  ${seasonHTML(rows)}
+  <div class="two"><button class="ghost center" id="cardsBtn"><span class="lbl">SAVE CODE CARDS</span></button><button class="ghost center" id="lockBtn"><span class="lbl">LOCK COACH MODE</span></button></div>
   <button class="ghost center" id="home"><span class="lbl">BACK</span></button>`;
-  $("#home").onclick=home;
+  $("#home").onclick=home;$("#cardsBtn").onclick=codeCards;$("#lockBtn").onclick=()=>{save("coachOK","");toast("Locked");home()};
   const ce=$("#csvBtn");if(ce)ce.onclick=()=>{const wk=weekId();const lines=[["name","hero","streak","week_damage","days_since_fight","top_missed"].join(",")];
     people.forEach(p=>{const tm=Object.entries(p.missed).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([id,n])=>{const q=byId[id];return (q?label(q):id)+" x"+n}).join("; ");lines.push([p.name,p.hero,p.streak,p.wkDmg,p.days,tm].map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(","))});
     lines.push("");lines.push("question_id,session,term,missed,seen,miss_rate");
@@ -564,7 +605,7 @@ function renderWeekly(){const el=$("#weekly");if(!el)return;const wt=weeklyTotal
   el.innerHTML=`<div class="row"><span class="eyebrow">TEAM TOME • week of ${weekId().slice(4,6)}/${weekId().slice(6)}</span><span class="hpnum">${hp.toLocaleString()}</span></div>${hpBar(hp,WEEK_MAX,"wide")}
   ${hp<=0?`<div class="loot"><span class="eyebrow">SLAIN</span><p>The team took the Tome down this week. It respawns Monday.</p></div>`:""}
   <div class="card"><p class="eyebrow">Roster • damage this week</p>${wt.rows.length?wt.rows.map((r,i)=>`<div class="rrow ${r.me?"me":""}"><span class="pos">${i+1}</span><span class="rn">${HEROES[r.hero]?HEROES[r.hero].icon+" ":""}${r.hat?HATS[r.hat]+" ":""}${esc(r.name)}</span><span class="rd">${r.dmg.toLocaleString()}</span></div>`).join(""):"<p class='muted'>No damage logged yet this week. Every daily and practice fight counts.</p>"}
-  ${dbReady?"":"<p class='muted small'>Showing this phone only. Team pooling is not configured yet.</p>"}</div>`}
+  ${dbReady?"":"<p class='muted small'>Showing this phone only. Team pooling is not configured yet.</p>"}</div>${seasonHTML(dbReady?roster:[{weeks:S.weekLocal}])}`}
 function weekly(){wantTrack("overworld");
   app.innerHTML=`<header class="title"><p class="eyebrow">Everyone’s damage pools into one bar</p><h1>Weekly Boss</h1></header>${sceneHTML()}<div id="weekly"></div>
   <button class="big" id="fightW"><span class="lbl">WEEKLY RAID</span><span class="sub">12 questions across every session + boss. Same seed for the whole team.</span></button>

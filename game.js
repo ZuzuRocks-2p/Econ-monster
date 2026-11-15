@@ -291,7 +291,7 @@ async function restoreCode(code){const c=cleanCode(code);if(!/^SCOT-[A-Z0-9]{4}-
 function watchRoster(){if(unsubRoster)unsubRoster();let q=DB.collection("players");if(S.team)q=q.where("team","==",S.team);
   unsubRoster=q.limit(200).onSnapshot(snap=>{roster=snap.docs.map(x=>Object.assign({id:x.id},x.data()));if(document.getElementById("weekly"))renderWeekly();const wb=document.querySelector("#weeklyBtn .sub");if(wb){const wt=weeklyTotals();wb.textContent="Team HP "+Math.max(0,WEEK_MAX-wt.total).toLocaleString()+" / "+WEEK_MAX.toLocaleString()+" • "+wt.rows.length+" fighter"+(wt.rows.length===1?"":"s")}},()=>{})}
 (async()=>{try{
-  if(!window.firebase||!window.FIREBASE_CONFIG||!FIREBASE_CONFIG.apiKey)return;
+  if(typeof firebase==="undefined"||typeof FIREBASE_CONFIG==="undefined"||!FIREBASE_CONFIG.apiKey)return;
   firebase.initializeApp(FIREBASE_CONFIG);
   const cred=await firebase.auth().signInAnonymously();UID=cred.user.uid;DB=firebase.firestore();dbReady=true;
   const pulled=await cloudPull();if(!pulled)cloudPush();

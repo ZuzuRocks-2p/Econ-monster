@@ -1,10 +1,10 @@
-// Paste your Firebase web app config here (Firebase console → Project settings → Your apps → Config).
-// Leave apiKey empty and the game runs single-player with no shared Weekly Boss.
+// Firebase web config for project econ-monster. These values are public by design;
+// access is controlled by Firestore rules + App Check, not by hiding this file.
 const FIREBASE_CONFIG = {
-  apiKey: "",
-  authDomain: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: ""
+  apiKey: "AIzaSyAxhg3On2kzIVbY7FAuh7ni83hSi5EYvg8",
+  authDomain: "econ-monster.firebaseapp.com",
+  projectId: "econ-monster",
+  storageBucket: "econ-monster.firebasestorage.app",
+  messagingSenderId: "735638170078",
+  appId: "1:735638170078:web:a7abc4ddc2cf04ad6e154f"
 };

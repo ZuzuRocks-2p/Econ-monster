@@ -4,16 +4,16 @@ const CAMPUS={
   w:256,h:224,
   // boss locations placed on real buildings (session -> position, label)
   spots:{
-    1:{x:46,y:80,label:"Snack Bar"},
-    2:{x:178,y:116,label:"The Quad"},
-    3:{x:146,y:138,label:"The Gym"},
-    4:{x:214,y:76,label:"Library"},
-    5:{x:244,y:28,label:"Front Office"},
-    6:{x:98,y:196,label:"Parking Lot"},
-    7:{x:164,y:196,label:"Bus Loop"},
-    8:{x:32,y:40,label:"Ball Fields"},
+    1:{x:56,y:78,label:"Snack Bar"},
+    2:{x:178,y:108,label:"The Quad"},
+    3:{x:146,y:142,label:"The Gym"},
+    4:{x:218,y:62,label:"Library"},
+    5:{x:244,y:36,label:"Front Office"},
+    6:{x:84,y:196,label:"Parking Lot"},
+    7:{x:196,y:196,label:"Bus Loop"},
+    8:{x:36,y:44,label:"Ball Fields"},
     9:{x:56,y:140,label:"Bleachers"},
-    10:{x:226,y:174,label:"ASB Store"},
+    10:{x:228,y:152,label:"ASB Store"},
     11:{x:200,y:6,label:"Charger Ave Dropoff"},
     12:{x:100,y:132,label:"Art Room"}
   }
@@ -74,27 +74,26 @@ var drawCampus=function(c,freedSet,now){
 
 // ---------- LANDMARKS ----------
 const LM={};["gym","diamond","track","bleachers","tennis","carport","pod","snackbar","flag","tree"].forEach(k=>{const im=new Image();im.src="art/landmarks/"+k+".png";LM[k]=im});
-function L(c,k,x,y,w,h){const im=LM[k];if(!(im&&im.complete&&im.naturalWidth))return false;const s=Math.min(w/im.naturalWidth,h/im.naturalHeight);const dw=im.naturalWidth*s,dh=im.naturalHeight*s;c.drawImage(im,x+(w-dw)/2,y+(h-dh)/2,dw,dh);return true}
+function L(c,k,x,y,w,h,rot){const im=LM[k];if(!(im&&im.complete&&im.naturalWidth))return false;const s=Math.min(w/im.naturalWidth,h/im.naturalHeight);const dw=im.naturalWidth*s,dh=im.naturalHeight*s;if(rot){c.save();c.translate(x+w/2,y+h/2);c.rotate(rot*Math.PI/180);c.drawImage(im,-dw/2,-dh/2,dw,dh);c.restore()}else c.drawImage(im,x+(w-dw)/2,y+(h-dh)/2,dw,dh);return true}
 // positions traced from the aerial, in 256x224 map space: [key,x,y,w,h]
 const LANDMARKS=[
- ["diamond",2,6,62,62],["diamond",66,8,30,30],["diamond",142,8,42,42],
- ["track",14,100,40,88],["bleachers",50,110,12,56],
- ["gym",118,104,56,60],
- ["tennis",58,164,64,26],["carport",56,186,84,26],["carport",142,186,46,26],
- ["snackbar",34,78,24,20],["flag",190,116,8,22],
- // upper-right pod cluster
- ["pod",150,24,18,18],["pod",172,20,18,18],["pod",194,14,18,18],["pod",216,10,18,18],["pod",236,16,18,18],
- ["pod",156,48,18,18],["pod",178,46,18,18],["pod",200,44,18,18],["pod",222,44,18,18],
- ["pod",186,68,18,18],["pod",208,66,18,18],["pod",230,66,18,18],
- ["pod",196,88,18,18],["pod",218,88,18,18],["pod",240,86,18,18],
- // lower-right cluster
- ["pod",186,142,18,18],["pod",208,140,18,18],["pod",230,140,18,18],
- ["pod",196,164,18,18],["pod",218,164,18,18],["pod",240,164,18,18],
- ["pod",206,186,18,18],["pod",228,186,18,18]
+ // diamonds: sprite has home plate at bottom-center. Rotate so home plate sits where the aerial shows it.
+ ["diamond",10,12,54,54,45],      // big field: home plate bottom-left, fans up-right
+ ["diamond",70,12,30,30,-135],   // small field: home plate upper-left, fans down-right
+ ["diamond",140,10,42,42,-90],   // softball: home plate on the right, fans left
+ ["track",14,100,40,88],["bleachers",50,110,12,56],["snackbar",46,76,22,18],
+ ["gym",118,108,56,60],["flag",190,112,8,22],
+ ["tennis",56,164,64,24],
+ ["carport",56,188,54,22],["carport",112,188,54,22],["carport",170,188,54,22],
+ // northern crescent of pods (arc from gym's upper-left up to Charger)
+ ["pod",150,66,18,18],["pod",164,50,18,18],["pod",180,38,18,18],["pod",198,30,18,18],["pod",218,28,18,18],["pod",236,36,18,18],
+ ["pod",172,70,18,18],["pod",192,58,18,18],["pod",212,52,18,18],["pod",232,56,18,18],
+ // southern crescent (arc from gym's right down toward Royal Scots Way)
+ ["pod",182,120,18,18],["pod",200,112,18,18],["pod",220,114,18,18],["pod",238,124,18,18],
+ ["pod",190,142,18,18],["pod",210,138,18,18],["pod",230,146,18,18],
+ ["pod",200,164,18,18],["pod",220,166,18,18],["pod",240,170,18,18]
 ];
-// orchard trees on a grid inside the dirt block
-// scattered trees
-[[4,92],[6,200],[120,154],[176,124],[246,124],[246,200],[100,150]].forEach(([x,y])=>LANDMARKS.push(["tree",x,y,12,12]));
+[[4,96],[6,200],[120,80],[246,92],[246,206],[100,150],[166,96]].forEach(([x,y])=>LANDMARKS.push(["tree",x,y,12,12]));
 // ---------- IMAGE TILE OVERWORLD ----------
 const TILES={};let tilesReady=false;
 (function(){const names=["grass","grass2","grass3","grass4","dirtpatch","dirt","path","path2","path_v","road_h_edge","road_v","road_v2","road_v3","road_v4","road_t","tree_fruit","tree_round","bush","roof_a","roof_b","roof_c","wall_window","wall_door","wall_small","gym_a","gym_b","gym_c","gym_d","gymdoor","tennis","solar_a","solar_b","infield","track","bleachers","flagpole","bench_can","fence_lamp"];
@@ -142,7 +141,7 @@ function drawCampusTiles(c,freedSet,now){
   c.fillStyle="rgba(255,255,255,.35)";for(let y=30;y<106;y+=10)c.fillRect(70,y,70,1);c.fillRect(70,28,1,80);c.fillRect(139,28,1,80);
   c.fillStyle="#f1e9d2";c.fillRect(96,26,18,1);c.fillRect(96,26,1,5);c.fillRect(113,26,1,5);c.fillRect(96,108,18,1);c.fillRect(96,104,1,5);c.fillRect(113,104,1,5);
   // placed landmark sprites (sorted by bottom edge for depth)
-  LANDMARKS.slice().sort((a,b)=>(a[2]+a[4])-(b[2]+b[4])).forEach(([k,x,y,w,h])=>L(c,k,x,y,w,h));
+  LANDMARKS.slice().sort((a,b)=>(a[2]+a[4])-(b[2]+b[4])).forEach(([k,x,y,w,h,r])=>L(c,k,x,y,w,h,r));
   // boss markers
   Object.entries(CAMPUS.spots).forEach(([s,sp])=>{const f=freedSet.has(+s);const bob=Math.sin((now||0)/300+s)*1.5;
     px(c,sp.x-6,sp.y+6,12,2,"rgba(0,0,0,.3)");

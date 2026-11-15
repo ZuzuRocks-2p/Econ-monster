@@ -30,7 +30,7 @@ const LOOT=[
 const HATS={crown:"👑",wizard:"🧠",cap:"🧢",halo:"😇"};
 function icon(n,cls=""){return `<img class="icon ${cls}" src="art/icons/${n}.png" alt="${n}">`}
 const ITEMS={skip:{n:"Skip",d:"Skip one question, no damage either way"},second:{n:"Second Chance",d:"Restore a heart once per fight"}};
-const TAUGHT=8;let TOME_MAX=200;const WEEK_MAX=5000; // TAUGHT: bump after each lecture; sessions above it are locked everywhere
+const TAUGHT=12;let TOME_MAX=200;const WEEK_MAX=5000; // TAUGHT: bump after each lecture; sessions above it are locked everywhere
 
 // ---------- STATE ----------
 function load(k,d){try{const v=localStorage.getItem("econ."+k);return v==null?d:JSON.parse(v)}catch(e){return d}}
@@ -631,7 +631,7 @@ function campus(){wantTrack("overworld");
   function info(){const el=$("#spotInfo");if(!el)return;if(!atSpot){el.innerHTML="<p class='muted'>Walk the Scot to a location.</p>";return}
     const [s,sp]=atSpot;const ch=CHAPTERS[s];const w=Math.min(3,sessionWins(+s));
     if(+s>TAUGHT){el.innerHTML=`<div class="row"><div><p class="eyebrow">${esc(sp.label)}</p><p><b>???</b> • ${esc(SESSIONS[s])}</p><p class="muted small">Locked until Coach teaches Session ${s}.</p></div><span class="lock">🔒</span></div>`;return}
-    el.innerHTML=`<div class="row"><div><p class="eyebrow">${esc(sp.label)}</p><p><b>${esc(ch.name)}</b> • ${esc(SESSIONS[s])}</p><p class="muted small">${fs.has(+s)?"Freed. Fight again for loot.":w+"/3 wins to free"}</p></div><button class="big center" id="fightHere" style="width:auto"><span class="lbl">FIGHT</span></button></div>`;
+    el.innerHTML=`<div class="row"><div><p class="eyebrow">Session ${s} • ${esc(sp.label)}</p><p><b>${esc(ch.name)}</b> • ${esc(SESSIONS[s])}</p><p class="muted small">${fs.has(+s)?"Freed. Fight again for loot.":w+"/3 wins to free"}</p></div><button class="big center" id="fightHere" style="width:auto"><span class="lbl">FIGHT</span></button></div>`;
     $("#fightHere").onclick=()=>{SFX.click();start({practice:true,session:+s})};}
   cv.addEventListener("click",e=>{const r=cv.getBoundingClientRect();const x=(e.clientX-r.left)/r.width*256,y=(e.clientY-r.top)/r.height*224;const sp=spotAt(x,y);
     if(sp&&atSpot&&sp[0]===atSpot[0]){if(+sp[0]>TAUGHT){SFX.miss();toast("Locked until Session "+sp[0]);return}SFX.click();start({practice:true,session:+sp[0]});return}
@@ -648,7 +648,7 @@ function campus(){wantTrack("overworld");
     
     if(target){c.fillStyle="rgba(255,211,107,.8)";c.fillRect(target.x-2,target.y-2,4,4)}
     c.setTransform(1,0,0,1,0,0);c.font="8px 'Press Start 2P',monospace";c.textAlign="center";
-    Object.entries(CAMPUS.spots).forEach(([s,sp])=>{const lab=sp.label.toUpperCase();const w=c.measureText(lab).width+8;c.fillStyle="rgba(0,0,0,.6)";c.fillRect(sp.x*2-w/2,sp.y*2+6,w,12);c.fillStyle=fs.has(+s)?"#9fd8aa":+s>TAUGHT?"#8a8a9a":"#fff";c.fillText(lab,sp.x*2,sp.y*2+15)});
+    Object.entries(CAMPUS.spots).forEach(([s,sp])=>{const lab=s+" • "+sp.label.toUpperCase();const w=c.measureText(lab).width+8;const lx=Math.max(w/2+4,Math.min(512-w/2-4,sp.x*2));c.fillStyle="rgba(0,0,0,.6)";c.fillRect(lx-w/2,sp.y*2+6,w,12);c.fillStyle=fs.has(+s)?"#9fd8aa":+s>TAUGHT?"#8a8a9a":"#fff";c.fillText(lab,lx,sp.y*2+15)});
     requestAnimationFrame(draw)})();
   const sp0=spotAt(hero.x,hero.y-4);if(sp0){atSpot=sp0;info()}
 }

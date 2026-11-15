@@ -185,6 +185,7 @@ function drawSprite(c,key,cx,bottom,maxW,maxH,flip){const im=spriteImg(key);if(!
 ["lad","lass","scottie"].forEach(h=>["idle","attack","hit","win"].forEach(p=>spriteImg(h+"_"+p)));
 ["tome","scarcity","shifter","surplus","midpoint","wedge","monopolist","externality","deflator","moocher","benchwarmer","cashbox","dropoff"].forEach(b=>["idle","cast","hit","dead"].forEach(p=>spriteImg(b+"_"+p)));
 const WALK={};["lad","lass","scottie"].forEach(h=>["down","left","right","up"].forEach(d=>[0,1,2].forEach(f=>{const im=new Image();im.src=`art/walk/${h}_${d}_${f}.png`;WALK[`${h}_${d}_${f}`]=im})));
+const BG={};for(let i=1;i<=12;i++){const im=new Image();im.src="art/bg/"+i+".jpg";BG[i]=im}
 const FX={};["poison","slash","crit","shield","rune","heal","chain","chest"].forEach(n=>{const im=new Image();im.src="art/fx/"+n+".png";FX[n]=im});
 function fxSprite(name,x,y,size,ms){const f=$("#fx");if(!f||!FX[name])return;const e=document.createElement("img");e.src=FX[name].src;e.className="fxs";e.style.cssText=`left:${x}%;top:${y}%;width:${size}%;animation-duration:${ms}ms`;f.appendChild(e);setTimeout(()=>e.remove(),ms+50)}
 const PX=6;
@@ -215,6 +216,9 @@ function loop(){
   c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,W,H);
   const sx=Scene.shake>0?(Math.random()-.5)*Scene.shake:0,sy=Scene.shake>0?(Math.random()-.5)*Scene.shake:0;if(Scene.shake>0)Scene.shake-=1;
   c.translate(sx,sy);
+  const bgImg=Scene.chapterId&&BG[Scene.chapterId]&&BG[Scene.chapterId].complete&&BG[Scene.chapterId].naturalWidth?BG[Scene.chapterId]:null;
+  if(bgImg){c.drawImage(bgImg,-20,-20,W+40,H+40);c.fillStyle="rgba(13,26,58,.22)";c.fillRect(-20,-20,W+40,H+40)}
+  else{
   // JRPG battle backdrop: dusk sky band over a slice of the campus overworld
   const g=c.createLinearGradient(0,0,0,70);g.addColorStop(0,"#0d1a3a");g.addColorStop(1,"#2d4f9d");c.fillStyle=g;c.fillRect(-20,-20,W+40,90);
   Scene.stars.forEach(s=>{if(s.y>60)return;const a=.4+.6*Math.abs(Math.sin(Scene.t/40+s.tw));c.fillStyle=`rgba(255,240,200,${a})`;c.fillRect(Math.floor(s.x/3)*3,Math.floor(s.y/3)*3,3,3)});
@@ -226,6 +230,7 @@ function loop(){
   for(let row=0;row<130;row+=2){const t=row/130;const scale=1.2+t*1.6;const srcW=W/scale,srcH=2/scale;c.drawImage(Scene.bg,Math.max(0,Math.min(256-srcW,vx-srcW/2)),Math.max(0,Math.min(224-srcH,vy-60+row/2.2)),srcW,srcH,-20,70+row,W+40,2.5)}
   c.restore();
   c.fillStyle="rgba(13,26,58,.55)";c.fillRect(-20,70,W+40,130);
+  }
   const fogN=Scene.chapter&&Scene.chapter.move==="fog"?10:4;
   for(let i=0;i<fogN;i++){c.fillStyle=`rgba(123,220,90,${.05+.03*i})`;const fx=(Scene.t*(0.3+i*0.2))%(W+120)-60;c.fillRect(fx,H-40-(i>3?i*8:0)+i*5,120,10)}
   // hero

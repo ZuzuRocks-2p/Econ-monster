@@ -163,15 +163,17 @@ drawCampus=function(c,freedSet,now){if(!drawCampusTiles(c,freedSet,now))_drawCam
 
 // ---------- POSSESSION OVERLAY: tint + fog on uncleared areas, progress pips, campus-freed banner ----------
 const FOG=[[0,0,14,5],[-11,6,10,4],[9,-8,9,4],[-6,-12,11,4],[12,8,8,3]];
-function drawPossession(c,freedSet,now){const t=(now||0)/1000;const wins=s=>typeof sessionWins==="function"?Math.min(3,sessionWins(+s)):0;
+function drawPossession(c,freedSet,now){const t=(now||0)/1000;const taught=typeof TAUGHT==="number"?TAUGHT:99;const locked=s=>+s>taught;const wins=s=>typeof sessionWins==="function"?Math.min(3,sessionWins(+s)):0;
   const spots=Object.entries(CAMPUS.spots);
   // 1. purple curse over uncleared spots; faint warm light over freed ones
   spots.forEach(([s,sp])=>{const f=freedSet.has(+s);
+    if(locked(s)){const g=c.createRadialGradient(sp.x,sp.y,4,sp.x,sp.y,30);g.addColorStop(0,"rgba(20,20,30,.55)");g.addColorStop(1,"rgba(20,20,30,0)");c.fillStyle=g;c.beginPath();c.arc(sp.x,sp.y,30,0,6.283);c.fill();
+      px(c,sp.x-4,sp.y-11,8,7,"#8a8a9a");px(c,sp.x-3,sp.y-10,6,5,"#5a5a6a");px(c,sp.x-3,sp.y-15,1,4,"#c9c9d6");px(c,sp.x+2,sp.y-15,1,4,"#c9c9d6");px(c,sp.x-3,sp.y-16,6,1,"#c9c9d6");px(c,sp.x-1,sp.y-9,2,2,"#ffd36b");return}
     if(!f){const g=c.createRadialGradient(sp.x,sp.y,4,sp.x,sp.y,36);g.addColorStop(0,"rgba(70,22,120,.62)");g.addColorStop(.6,"rgba(70,22,120,.38)");g.addColorStop(1,"rgba(70,22,120,0)");c.fillStyle=g;c.beginPath();c.arc(sp.x,sp.y,36,0,6.283);c.fill();
       c.fillStyle="rgba(190,160,230,.22)";FOG.forEach(([ox,oy,w,h],i)=>{const dx=Math.sin(t*.7+i*1.3+ +s)*6,dy=Math.cos(t*.5+i*.9)*3;c.beginPath();c.ellipse(sp.x+ox+dx,sp.y+oy+dy,w,h,0,0,6.283);c.fill()})}
     else{const g=c.createRadialGradient(sp.x,sp.y,2,sp.x,sp.y,30);g.addColorStop(0,"rgba(255,230,150,.16)");g.addColorStop(1,"rgba(255,230,150,0)");c.fillStyle=g;c.beginPath();c.arc(sp.x,sp.y,30,0,6.283);c.fill()}});
   // 2. progress pips under each marker (3 wins frees the spot)
-  spots.forEach(([s,sp])=>{const f=freedSet.has(+s),w=f?3:wins(s);for(let i=0;i<3;i++){const x=sp.x-6+i*4,y=sp.y+11;px(c,x,y,3,3,"#000");px(c,x+.5,y+.5,2,2,f?"#4ba65a":i<w?"#ffd36b":"#3a2a55")}});
+  spots.forEach(([s,sp])=>{if(locked(s))return;const f=freedSet.has(+s),w=f?3:wins(s);for(let i=0;i<3;i++){const x=sp.x-6+i*4,y=sp.y+11;px(c,x,y,3,3,"#000");px(c,x+.5,y+.5,2,2,f?"#4ba65a":i<w?"#ffd36b":"#3a2a55")}});
   // 3. all twelve freed: tartan banner flies over the gym
   const total=Object.keys(CHAPTERS||{}).length||12;
   if(freedSet.size>=total){const bx=140,by=100;px(c,bx,by-44,2,48,"#f1e9d2");px(c,bx-1,by-46,4,3,"#ffd36b");

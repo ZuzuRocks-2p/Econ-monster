@@ -622,7 +622,9 @@ function campus(){wantTrack("overworld");
   <button class="ghost center" id="home"><span class="lbl">BACK</span></button>`;
   $("#home").onclick=home;
   const cv=$("#map"),c=cv.getContext("2d");c.imageSmoothingEnabled=false;
-  const fs=new Set(Object.keys(CHAPTERS).map(Number).filter(freed));
+  const fs=new Set(Object.keys(CHAPTERS).map(Number).filter(freed));const nCh=Object.keys(CHAPTERS).length;
+  const hud=$("#mapHud");if(hud)hud.innerHTML=fs.size>=nCh?`<span class="pill gold">✓ CAMPUS FREED</span>`:`<span class="pill">${fs.size} / ${nCh} FREED</span>`;
+  if(fs.size>=nCh){const ey=document.querySelector(".title .eyebrow");if(ey)ey.textContent="Every area freed. The Tome is cornered.";}
   const hero=load("heroPos",{x:118,y:140});let target=null,atSpot=null,step=0;
   const spotAt=(x,y)=>Object.entries(CAMPUS.spots).find(([s,sp])=>Math.hypot(sp.x-x,sp.y-y)<14);
   function info(){const el=$("#spotInfo");if(!el)return;if(!atSpot){el.innerHTML="<p class='muted'>Walk the Scot to a location.</p>";return}

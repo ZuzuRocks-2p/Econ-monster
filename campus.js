@@ -160,3 +160,22 @@ function drawCampusTiles(c,freedSet,now){
 }
 const _drawCampusProc=drawCampus;
 drawCampus=function(c,freedSet,now){if(!drawCampusTiles(c,freedSet,now))_drawCampusProc(c,freedSet,now)};
+
+// ---------- POSSESSION OVERLAY: tint + fog on uncleared areas, progress pips, campus-freed banner ----------
+const FOG=[[0,0,14,5],[-11,6,10,4],[9,-8,9,4],[-6,-12,11,4],[12,8,8,3]];
+function drawPossession(c,freedSet,now){const t=(now||0)/1000;const wins=s=>typeof sessionWins==="function"?Math.min(3,sessionWins(+s)):0;
+  const spots=Object.entries(CAMPUS.spots);
+  // 1. purple curse over uncleared spots; faint warm light over freed ones
+  spots.forEach(([s,sp])=>{const f=freedSet.has(+s);
+    if(!f){const g=c.createRadialGradient(sp.x,sp.y,4,sp.x,sp.y,36);g.addColorStop(0,"rgba(70,22,120,.62)");g.addColorStop(.6,"rgba(70,22,120,.38)");g.addColorStop(1,"rgba(70,22,120,0)");c.fillStyle=g;c.beginPath();c.arc(sp.x,sp.y,36,0,6.283);c.fill();
+      c.fillStyle="rgba(190,160,230,.22)";FOG.forEach(([ox,oy,w,h],i)=>{const dx=Math.sin(t*.7+i*1.3+ +s)*6,dy=Math.cos(t*.5+i*.9)*3;c.beginPath();c.ellipse(sp.x+ox+dx,sp.y+oy+dy,w,h,0,0,6.283);c.fill()})}
+    else{const g=c.createRadialGradient(sp.x,sp.y,2,sp.x,sp.y,30);g.addColorStop(0,"rgba(255,230,150,.16)");g.addColorStop(1,"rgba(255,230,150,0)");c.fillStyle=g;c.beginPath();c.arc(sp.x,sp.y,30,0,6.283);c.fill()}});
+  // 2. progress pips under each marker (3 wins frees the spot)
+  spots.forEach(([s,sp])=>{const f=freedSet.has(+s),w=f?3:wins(s);for(let i=0;i<3;i++){const x=sp.x-6+i*4,y=sp.y+11;px(c,x,y,3,3,"#000");px(c,x+.5,y+.5,2,2,f?"#4ba65a":i<w?"#ffd36b":"#3a2a55")}});
+  // 3. all twelve freed: tartan banner flies over the gym
+  const total=Object.keys(CHAPTERS||{}).length||12;
+  if(freedSet.size>=total){const bx=140,by=100;px(c,bx,by-44,2,48,"#f1e9d2");px(c,bx-1,by-46,4,3,"#ffd36b");
+    for(let i=0;i<26;i++){const yy=by-42+Math.sin(t*5+i*.45)*1.6;const col=(Math.floor(i/3)+0)%2?"#2d4f9d":"#4ba65a";px(c,bx+2+i,yy,1,16,col);if(i%4===1)px(c,bx+2+i,yy+2,1,12,"rgba(255,211,107,.55)")}
+    for(let i=0;i<26;i++){const yy=by-42+Math.sin(t*5+i*.45)*1.6;if((i+2)%6<2)px(c,bx+2+i,yy+7,1,2,"#f1e9d2")}}}
+const _drawCampusBase=drawCampus;
+drawCampus=function(c,freedSet,now){_drawCampusBase(c,freedSet,now);drawPossession(c,freedSet,now)};

@@ -180,7 +180,7 @@ const HATMAPS={crown:["y.y.y.y","yyyyyyy"],wizard:["...j...","..jjj..",".jjjjj."
 
 // ---------- IMAGE SPRITES (art/sprites/*.png, fallback to pixel grids) ----------
 const IMG={};const IMG_MISSING={};
-function spriteImg(key){if(IMG[key])return IMG[key].complete&&IMG[key].naturalWidth?IMG[key]:null;if(IMG_MISSING[key])return null;const im=new Image();im.onerror=()=>{IMG_MISSING[key]=true};im.src="art/sprites/"+key+".png";IMG[key]=im;return null}
+function spriteImg(key){if(IMG[key])return IMG[key].complete&&IMG[key].naturalWidth?IMG[key]:null;if(IMG_MISSING[key])return null;const im=new Image();im.onerror=()=>{IMG_MISSING[key]=true};im.onload=()=>{document.dispatchEvent(new CustomEvent("spriteload",{detail:key}))};im.src="art/sprites/"+key+".png";IMG[key]=im;return null}
 function drawSprite(c,key,cx,bottom,maxW,maxH,flip){const im=spriteImg(key);if(!im)return false;const s=Math.min(maxW/im.naturalWidth,maxH/im.naturalHeight);const w=im.naturalWidth*s,h=im.naturalHeight*s;c.save();c.imageSmoothingEnabled=false;if(flip){c.translate(cx,0);c.scale(-1,1);c.drawImage(im,-w/2,bottom-h,w,h)}else c.drawImage(im,cx-w/2,bottom-h,w,h);c.restore();return true}
 ["lad","lass","scottie"].forEach(h=>["idle","attack","hit","win"].forEach(p=>spriteImg(h+"_"+p)));
 ["tome","scarcity","shifter","surplus","midpoint","wedge","monopolist","externality","deflator","moocher","benchwarmer","cashbox","dropoff"].forEach(b=>["idle","cast","hit","dead"].forEach(p=>spriteImg(b+"_"+p)));
@@ -459,7 +459,7 @@ function pickHero(){
   <div class="heroes">${Object.entries(HEROES).map(([k,h])=>`<button class="ghost heroBtn ${heroKey()===k?"on":""}" data-h="${k}"><canvas width="120" height="80" data-c="${k}"></canvas><span class="lbl">${esc(h.name).toUpperCase()}</span></button>`).join("")}</div>
   <p class="muted small" style="text-align:center">You can change this later in the Bag.</p>
   <button class="big center" id="go"><span class="lbl">▶ ONWARD</span></button>`;
-  document.querySelectorAll("canvas[data-c]").forEach(cv=>{const c=cv.getContext("2d");c.imageSmoothingEnabled=false;const draw=()=>{c.clearRect(0,0,120,80);if(!drawSprite(c,cv.dataset.c+"_idle",60,78,110,76)){const h=HEROES[cv.dataset.c];const m=h.map;const s=Math.floor(Math.min(110/m[0].length,74/m.length));drawMap(c,m,(120-m[0].length*s)/2,(80-m.length*s)/2,s)}};draw();setTimeout(draw,400);setTimeout(draw,1200)});
+  document.querySelectorAll("canvas[data-c]").forEach(cv=>{const c=cv.getContext("2d");c.imageSmoothingEnabled=false;const draw=()=>{c.clearRect(0,0,120,80);if(!drawSprite(c,cv.dataset.c+"_idle",60,78,110,76)){const h=HEROES[cv.dataset.c];const m=h.map;const s=Math.floor(Math.min(110/m[0].length,74/m.length));drawMap(c,m,(120-m[0].length*s)/2,(80-m.length*s)/2,s)}};draw();const onl=e=>{if(e.detail===cv.dataset.c+"_idle"){draw();document.removeEventListener("spriteload",onl)}};document.addEventListener("spriteload",onl);setTimeout(draw,1500);setTimeout(draw,4000)});
   document.querySelectorAll(".heroBtn").forEach(b=>b.onclick=()=>{setHero(b.dataset.h);SFX.click();document.querySelectorAll(".heroBtn").forEach(x=>x.classList.toggle("on",x===b))});
   $("#go").onclick=()=>{if(!load("hero",null))setHero("lad");SFX.loot();home()};
 }

@@ -276,7 +276,7 @@ function loop(){
 
 // ---------- CLOUD SAVE + TEAM (Firebase, no personal data) ----------
 // Identity = a random save code kept on the phone. No email, no login, no real names required.
-let DB=null,UID=null,dbReady=false,roster=[],unsubRoster=null,cloudTimer=null;
+let DB=null,UID=null,dbReady=false,roster=[],unsubRoster=null,cloudTimer=null,raidDoc=null,unsubRaid=null;
 const CLOUD_KEYS=["streak","lastDay","best","totalDmg","team","name","wins","titles","hats","hat","title","items","escaped","recapture"];
 function newCode(){const A="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";let s="";const r=crypto.getRandomValues(new Uint8Array(12));for(let i=0;i<12;i++)s+=A[r[i]%A.length];return "SCOT-"+s.slice(0,4)+"-"+s.slice(4,8)+"-"+s.slice(8)}
 function saveCode(){let c=load("saveCode","");if(!c){c=newCode();save("saveCode",c)}return c}
@@ -287,21 +287,57 @@ function applyCloud(d){if(!d)return;CLOUD_KEYS.forEach(k=>{if(d[k]!==undefined&&
 function cloudPush(){if(!dbReady)return;clearTimeout(cloudTimer);cloudTimer=setTimeout(async()=>{try{const d=cloudDoc();await DB.doc("players/"+saveCode()).set(d);save("synced",d.updated)}catch(e){console.warn("cloud push",e)}},800)}
 async function cloudPull(){if(!dbReady)return false;try{const snap=await DB.doc("players/"+saveCode()).get();if(!snap.exists)return false;const d=snap.data();if((d.updated||0)>load("synced",0)){applyCloud(d);return true}}catch(e){}return false}
 async function restoreCode(code){const c=cleanCode(code);if(!/^SCOT-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(c))return "That code is not the right shape.";if(!dbReady)return "Not connected. Check your signal and try again.";
-  try{const snap=await DB.doc("players/"+c).get();if(!snap.exists)return "No save found for that code.";save("saveCode",c);save("synced",0);applyCloud(snap.data());watchRoster();return null}catch(e){return "Could not reach the save."}}
-function watchRoster(){if(unsubRoster)unsubRoster();let q=DB.collection("players");if(S.team)q=q.where("team","==",S.team);
-  unsubRoster=q.limit(200).onSnapshot(snap=>{roster=snap.docs.map(x=>Object.assign({id:x.id},x.data()));if(document.getElementById("weekly"))renderWeekly();const wb=document.querySelector("#weeklyBtn .sub");if(wb){const wt=weeklyTotals();wb.textContent="Team HP "+Math.max(0,WEEK_MAX-wt.total).toLocaleString()+" / "+WEEK_MAX.toLocaleString()+" • "+wt.rows.length+" fighter"+(wt.rows.length===1?"":"s")+myRank(wt)}},()=>{})}
+  try{const snap=await DB.doc("players/"+c).get();if(!snap.exists)return "No save found for that code.";save("saveCode",c);save("synced",0);applyCloud(snap.data());watchRoster();watchRaid();return null}catch(e){return "Could not reach the save."}}
+// The team code is typed by hand, so "HHS-ECON", "hhs econ" and "HHSECON" have to
+// land on the same raid. Everything that keys on a team goes through this.
+function normTeam(s){return String(s||"").toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,16)}
+function raidId(){const t=normTeam(S.team);return t?t+"_"+weekId():""}
+
+// The monster is ONE document per team per week, not a number each phone adds up for
+// itself. Damage lands with increment() so two students answering at the same moment
+// cannot overwrite each other, and everyone reads the same HP.
+function watchRaid(){if(unsubRaid){unsubRaid();unsubRaid=null}raidDoc=null;
+  const id=raidId();if(!dbReady||!id){refreshRaidUI();return}
+  unsubRaid=DB.doc("raids/"+id).onSnapshot(s=>{raidDoc=s.exists?s.data():null;refreshRaidUI()},()=>{})}
+
+// Authoritative damage for the week. The shared doc wins; the roster sum is only a
+// fallback for the first fight of a week, or before the raid doc has loaded.
+function teamTotal(){const wk=weekId();
+  if(raidDoc&&typeof raidDoc.total==="number")return raidDoc.total;
+  if(dbReady&&normTeam(S.team))return roster.reduce((a,r)=>a+((r.weeks||{})[wk]||0),0);
+  return S.weekLocal[wk]||0}
+
+function weeklyBtnSub(){if(!normTeam(S.team))return "Add your team code below to join the raid";
+  const wt=weeklyTotals();
+  return "Team HP "+Math.max(0,WEEK_MAX-wt.total).toLocaleString()+" / "+WEEK_MAX.toLocaleString()+" • "+wt.rows.length+" fighter"+(wt.rows.length===1?"":"s")+myRank(wt)}
+function refreshRaidUI(){if(document.getElementById("weekly"))renderWeekly();
+  const wb=document.querySelector("#weeklyBtn .sub");if(wb)wb.textContent=weeklyBtnSub()}
+
+function watchRoster(){if(unsubRoster){unsubRoster();unsubRoster=null}
+  const t=normTeam(S.team);
+  // A blank code used to run an unfiltered query, so strangers moved your bar.
+  if(!dbReady||!t){roster=[];refreshRaidUI();return}
+  unsubRoster=DB.collection("players").where("team","==",t).limit(200)
+    .onSnapshot(snap=>{roster=snap.docs.map(x=>Object.assign({id:x.id},x.data()));refreshRaidUI()},()=>{})}
 (async()=>{try{
   if(typeof firebase==="undefined"||typeof FIREBASE_CONFIG==="undefined"||!FIREBASE_CONFIG.apiKey)return;
   firebase.initializeApp(FIREBASE_CONFIG);
   const cred=await firebase.auth().signInAnonymously();UID=cred.user.uid;DB=firebase.firestore();dbReady=true;
-  const pulled=await cloudPull();if(!pulled)cloudPush();
-  watchRoster();if(!G)home()}catch(e){console.warn("firebase off",e)}})();
+  const pulled=await cloudPull();
+  // One-time fold: existing saves typed "HHS-ECON" or "hhs econ" join the same raid.
+  if(S.team!==normTeam(S.team)){S.team=normTeam(S.team);save("team",S.team)}
+  if(!pulled)cloudPush();
+  watchRoster();watchRaid();if(!G)home()}catch(e){console.warn("firebase off",e)}})();
 async function postDamage(dmg){
   const wk=weekId();S.weekLocal[wk]=(S.weekLocal[wk]||0)+dmg;save("weekLocal",S.weekLocal);cloudPush();
+  const id=raidId();if(!dbReady||!id||!(dmg>0))return;
+  try{await DB.doc("raids/"+id).set({team:normTeam(S.team),week:wk,max:WEEK_MAX,
+    total:firebase.firestore.FieldValue.increment(Math.round(dmg)),updated:Date.now()},{merge:true})}
+  catch(e){console.warn("raid post",e)}
 }
 function myRank(wt){const i=wt.rows.findIndex(r=>r.me);return i<0?"":` • You’re #${i+1} of ${wt.rows.length}`}
 function weeklyTotals(){const wk=weekId();const me=saveCode();if(dbReady){const rows=roster.map(r=>({name:r.name||"Someone",dmg:(r.weeks||{})[wk]||0,hat:r.hat||"",hero:r.hero||"",me:r.id===me})).filter(r=>r.dmg>0).sort((a,b)=>b.dmg-a.dmg);
-    if(!rows.some(r=>r.me)&&(S.weekLocal[wk]||0)>0)rows.push({name:S.name||"You",dmg:S.weekLocal[wk],hat:S.hat,hero:heroKey(),me:true});return {rows,total:rows.reduce((a,r)=>a+r.dmg,0)}}
+    if(!rows.some(r=>r.me)&&(S.weekLocal[wk]||0)>0)rows.push({name:S.name||"You",dmg:S.weekLocal[wk],hat:S.hat,hero:heroKey(),me:true});return {rows,total:teamTotal()}}
   const mine=S.weekLocal[wk]||0;return {rows:mine?[{name:S.name||"You",dmg:mine,hat:S.hat,hero:heroKey(),me:true}]:[],total:mine}}
 
 // ---------- COACH PIN ----------
@@ -377,7 +413,7 @@ function home(){
   ${S.title?`<p class="ptitle">${S.hat?HATS[S.hat]+" ":""}${esc(S.name||"You")}, <em>${esc(S.title)}</em></p>`:""}
   <button class="big pulse" id="startDaily"><span class="lbl">${played?"REPLAY QUEST #"+dn:"\u25b6 DAILY QUEST #"+dn}</span><span class="sub">5 questions + chapter boss • Sessions 1–${TAUGHT}</span></button>
   ${a2hsHTML()}
-  <button class="ghost" id="weeklyBtn"><span class="lbl">WEEKLY BOSS</span><span class="sub">Team HP ${Math.max(0,WEEK_MAX-wt.total).toLocaleString()} / ${WEEK_MAX.toLocaleString()} • ${wt.rows.length} fighter${wt.rows.length===1?"":"s"}${myRank(wt)}</span></button>
+  <button class="ghost" id="weeklyBtn"><span class="lbl">WEEKLY BOSS</span><span class="sub">${esc(weeklyBtnSub())}</span></button>
   <div class="two"><button class="ghost center" id="mapBtn"><span class="lbl">CAMPUS MAP</span></button><button class="ghost center" id="rivalBtn"><span class="lbl">RIVAL</span></button></div>
   <button class="ghost center" id="storyBtn"><span class="lbl">\ud83d\udcd6 THE STORY${load("storySeen",false)?"":" \u2022 NEW"}</span></button>
   <div class="two"><button class="ghost center" id="startPractice"><span class="lbl">PRACTICE</span></button><button class="ghost center" id="bagBtn"><span class="lbl">BAG (${(S.items.skip||0)+(S.items.second||0)})</span></button></div>
@@ -391,7 +427,7 @@ function home(){
   $("#coachBtn").onclick=()=>{SFX.click();coachGate()};
   a2hsWire();
   $("#pname").oninput=e=>{S.name=e.target.value.trim();save("name",S.name);cloudPush()};
-  $("#team").oninput=e=>{S.team=e.target.value.trim().toUpperCase();e.target.value=S.team;save("team",S.team);cloudPush();if(dbReady)watchRoster()};
+  $("#team").oninput=e=>{S.team=normTeam(e.target.value);e.target.value=S.team;save("team",S.team);cloudPush();if(dbReady){watchRoster();watchRaid()}};
 }
 
 let attractT=null;function attract(){clearInterval(attractT);attractT=setInterval(()=>{if(!G&&Scene.cv&&Scene.cv.isConnected){sceneSet("cast");setTimeout(()=>{if(!G)sceneSet("idle")},1200)}else clearInterval(attractT)},5000)}
@@ -606,7 +642,7 @@ function renderWeekly(){const el=$("#weekly");if(!el)return;const wt=weeklyTotal
   el.innerHTML=`<div class="row"><span class="eyebrow">TEAM TOME • week of ${weekId().slice(4,6)}/${weekId().slice(6)}</span><span class="hpnum">${hp.toLocaleString()}</span></div>${hpBar(hp,WEEK_MAX,"wide")}
   ${hp<=0?`<div class="loot"><span class="eyebrow">SLAIN</span><p>The team took the Tome down this week. It respawns Monday.</p></div>`:""}
   <div class="card"><p class="eyebrow">Roster • damage this week</p>${wt.rows.length?wt.rows.map((r,i)=>`<div class="rrow ${r.me?"me":""}"><span class="pos">${i+1}</span><span class="rn">${HEROES[r.hero]?HEROES[r.hero].icon+" ":""}${r.hat?HATS[r.hat]+" ":""}${esc(r.name)}</span><span class="rd">${r.dmg.toLocaleString()}</span></div>`).join(""):"<p class='muted'>No damage logged yet this week. Every daily and practice fight counts.</p>"}
-  ${dbReady?"":"<p class='muted small'>Showing this phone only. Team pooling is not configured yet.</p>"}</div>${seasonHTML(dbReady?roster:[{weeks:S.weekLocal}])}`}
+  ${!dbReady?"<p class='muted small'>Showing this phone only. Team pooling is not configured yet.</p>":!normTeam(S.team)?"<p class='muted small'>No team code yet, so this is only your own damage. Add your coach\u2019s code on the home screen to join the team raid.</p>":""}</div>${seasonHTML(dbReady?roster:[{weeks:S.weekLocal}])}`}
 function weekly(){wantTrack("overworld");
   app.innerHTML=`<header class="title"><p class="eyebrow">Everyone’s damage pools into one bar</p><h1>Weekly Boss</h1></header>${sceneHTML()}<div id="weekly"></div>
   <button class="big" id="fightW"><span class="lbl">WEEKLY RAID</span><span class="sub">12 questions across Sessions 1–${TAUGHT} + boss. Same seed for the whole team.</span></button>

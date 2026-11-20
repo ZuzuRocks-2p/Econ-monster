@@ -31,3 +31,23 @@ Then:
 
 ## Tuning
 In `game.js`: `TAUGHT` caps which sessions are in play, `TOME_MAX` is per-fight HP, `WEEK_MAX` is the team bar, `CHAPTERS` names the bosses and map locations, `LOOT` is the drop table.
+
+## The weekly raid monster
+
+One Firestore document per team per week: `raids/{TEAMCODE}_{mondayYYYYMMDD}`, holding
+`{team, week, max, total, updated}`. Remaining HP is `WEEK_MAX - total`.
+
+- **Damage** is applied with `FieldValue.increment()`, so two students answering at the same
+  moment cannot overwrite each other.
+- **The leaderboard** still comes from each player's own `weeks[]` map in `players/{saveCode}`,
+  so the shared bar and the per-student rows are separate records. The bar is authoritative.
+- **The reset is automatic.** `weekId()` keys off Monday, so a new week means a new document and
+  a full bar. Past weeks stay in each player's `weeks[]` and feed the season archive.
+- **Team codes are normalised** (`normTeam`): `HHS-ECON`, `hhs econ` and `HHSECON` are one raid.
+  A blank code no longer pools damage at all — it used to run an unfiltered roster query, so
+  strangers moved your bar.
+
+### Deploying this needs two steps, not one
+Pushing to `main` updates the app, but **Firestore rules are not deployed from this repo.**
+Paste `firestore.rules` into Firebase console -> Firestore -> Rules -> Publish, or every write to
+`raids/` is denied and the team bar silently stops moving.

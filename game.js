@@ -454,8 +454,8 @@ let B=null,blitzTimer=null;
 // largest budget where nothing lands below the fold. It keeps 92% of the bank and
 // every session stays well represented.
 const BLITZ_CHARS=320;
-// Many questions carry the session name in place of a real concept name, so a naive
-// label reads "Jobs & Finance Jobs & Finance". Show the session once when that happens.
+// Every bank question now carries a real concept name; this stays as a guard, since a
+// future question added without one would otherwise read "Jobs & Finance Jobs & Finance".
 function blitzLabel(q){const t=(q.term||"").trim();const sn=SESSIONS[q.s]||"";
   const n=x=>String(x).toLowerCase().replace(/[^a-z0-9]/g,"");
   return !t||n(t)===n(sn)?sn:t}

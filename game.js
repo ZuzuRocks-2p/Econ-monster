@@ -387,7 +387,7 @@ function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("on");setT
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 function rankFor(p){let r=RANKS[0][1];RANKS.forEach(([t,n])=>{if(p>=t)r=n});return r}
 function hpBar(v,max,cls=""){const segs=10,on=Math.ceil(v/max*segs);let s='<div class="hpwrap"><div class="hpbar '+cls+'" role="img" aria-label="HP '+v+'">';for(let i=0;i<segs;i++)s+=`<i class="${i<on?(on<=3?"on low":"on"):""}"></i>`;return s+'</div></div>'}
-function heartsHTML(h){let s='<div class="hearts" aria-label="'+h+' lives">';for(let i=0;i<3;i++)s+=`<span class="heart ${i<h?"":"off"}"></span>`;return s+'</div>'}
+function heartsHTML(h,max){const m=max||3;let s='<div class="hearts" aria-label="'+h+' lives">';for(let i=0;i<m;i++)s+=`<span class="heart ${i<h?"":"off"}"></span>`;return s+'</div>'}
 function sceneHTML(){return `<div class="scene"><canvas id="scene" width="360" height="200"></canvas><div class="scan"></div><div id="fx"></div>${(!S.muted&&!Music.current()&&!pendingTrackShown())?`<div class="sndHint" id="sndHint">\ud83c\udfb5 tap anywhere for music</div>`:""}<button class="mute" id="mute" aria-label="toggle sound">${S.muted?"🔇":"🔊"}</button></div>`}
 function mountScene(ch){const cv=$("#scene");if(cv)sceneInit(cv);Scene.heroPose="idle";Scene.chapter=ch||null;Scene.chapterId=ch?Object.keys(CHAPTERS).find(k=>CHAPTERS[k]===ch):null;const m=$("#mute");if(m)m.onclick=()=>{S.muted=!S.muted;save("muted",S.muted);m.textContent=S.muted?"🔇":"🔊";if(!S.muted)SFX.click()}}
 function sessionWins(s){return S.wins[s]||0}
@@ -435,35 +435,125 @@ function home(){
 }
 
 let attractT=null;function attract(){clearInterval(attractT);attractT=setInterval(()=>{if(!G&&Scene.cv&&Scene.cv.isConnected){sceneSet("cast");setTimeout(()=>{if(!G)sceneSet("idle")},1200)}else clearInterval(attractT)},5000)}
+
+// ---------- THE WEEKLY RAID ----------
+// Six chapter forms, then the corridor chain. Each form carries its own HP bar:
+// clear it and the Tome sheds that chapter, run out of beats and the chapter holds.
+// Only a student who sheds all seven unmakes the Tome.
+const RAID={forms:6,perForm:2,formHp:95,chainHp:210};
+// Uncapped, a long streak let one spell fell a whole form on its own, which skipped
+// that chapter's questions for exactly the students answering best. A daily quest is
+// too short to reach this, so the cap is felt only here.
+const COMBO_CAP=1.8;
+function comboMult(){return Math.min(1+0.1*(G.combo-1),COMBO_CAP)}
+// A beat that lands like a boss: a chapter's trap spell, or a link of the chain.
+function heavy(q){return !!(q&&(q.spell||q.big))}
+
+// Every figure the chain hands forward, formatted the way the next prompt reads it.
+function fmtCarry(st){const d=st.dec==null?2:st.dec;
+  const body=Number(st.ans).toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d});
+  return st.unit==="$"?"$"+body:st.unit==="%"?body+"%":body}
+const CHAIN_VALS=(typeof CHAIN!=="undefined"?CHAIN:[]).reduce((m,st)=>{if(st.carry)m[st.carry]=fmtCarry(st);return m},{});
+// A {placeholder} always resolves to the TRUE figure, never to what the student typed.
+// Dropping one link must not make the rest unanswerable — the chain keeps teaching
+// after a miss, and nobody is marked wrong for faithfully carrying their own error.
+function qtext(t){return String(t).replace(/\{(\w+)\}/g,(m,k)=>CHAIN_VALS[k]||m)}
+
+function buildRaid(seed){
+  const rnd=mulberry(seed),pool=BANK.filter(q=>q.s<=TAUGHT);
+  const all=[...new Set(pool.map(q=>q.s))].sort((a,b)=>a-b);
+  const bag=all.slice();for(let i=bag.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[bag[i],bag[j]]=[bag[j],bag[i]]}
+  // seeded pick, then walked in curriculum order so the raid reads like the course
+  const chosen=bag.slice(0,Math.min(RAID.forms,bag.length)).sort((a,b)=>a-b);
+  const used=new Set(),forms=[];
+  chosen.forEach(s=>{
+    const qs=[];
+    for(let i=0;i<RAID.perForm;i++){
+      const cands=pool.filter(q=>q.s===s&&!used.has(q.id));if(!cands.length)break;
+      const w=[];cands.forEach(q=>{const m=1+(S.missed[q.id]||0)*2;for(let x=0;x<m;x++)w.push(q)});
+      const q=w[Math.floor(rnd()*w.length)];used.add(q.id);qs.push(q);
+    }
+    if(!qs.length)return;
+    // The trap spell leads. It is the beat worth guaranteeing, and a form that falls
+    // early should never be the reason its chapter went undrilled.
+    const sp=BOSSES.filter(b=>b.s===s&&b.s<=TAUGHT);
+    if(sp.length)qs.unshift(sp[Math.floor(rnd()*sp.length)]);
+    forms.push({s,chapter:CHAPTERS[s]||CHAPTERS[1],qs,hp:RAID.formHp});
+  });
+  if(typeof CHAIN!=="undefined"&&CHAIN.length)
+    forms.push({s:CHAIN[CHAIN.length-1].s,chapter:CHAPTERS[5]||CHAPTERS[1],qs:CHAIN,hp:RAID.chainHp,chain:true});
+  return forms;
+}
+function loadForm(){const f=G.forms[G.fi];
+  G.qs=f.qs;G.boss=null;G.n=f.qs.length;G.i=0;G.tome=f.hp;G.tomeMax=f.hp;G.chapter=f.chapter;
+  // Fresh hearts each form: one chapter going badly must not end the raid, and a
+  // heart here reads as "beats left unmissed in this form" rather than a life.
+  G.heartsMax=Math.min(f.qs.length,5);G.hearts=G.heartsMax;Scene.dead=false}
+function markForm(){const shed=G.tome<=0;G.formMarks.push(shed?"🟩":"🟥");if(shed)G.cleared.push(G.forms[G.fi].s)}
+// Unmade only if every form fell, the corridor chain included.
+function unmade(){return G.formMarks.length===G.forms.length&&G.formMarks.every(m=>m==="🟩")}
+function nextLabel(){
+  if(!G.forms)return (G.hearts<=0||G.tome<=0||G.i>=G.n)?"SEE RESULT":"NEXT ▶";
+  const last=G.fi>=G.forms.length-1;
+  if(G.i>=G.n-1)return last?"SEE RESULT":"NEXT FORM ▶";
+  return "NEXT ▶";
+}
+function advance(){
+  G.i++;
+  if(!G.forms){if(G.hearts<=0||G.tome<=0||G.i>G.n)result();else fight();return}
+  const f=G.forms[G.fi],out=G.i>=G.n;
+  if(!out){fight();return}
+  markForm();
+  if(G.fi>=G.forms.length-1){G.won=unmade();result();return}
+  G.fi++;loadForm();interlude();
+}
+function interlude(){
+  clearInterval(timerId);
+  const f=G.forms[G.fi],prev=G.forms[G.fi-1],shed=G.formMarks[G.formMarks.length-1]==="🟩";
+  app.innerHTML=`
+  <div class="hud"><div class="row"><span class="eyebrow">FORM ${G.fi+1} / ${G.forms.length}</span>${heartsHTML(G.hearts,G.heartsMax)}</div>${sceneHTML()}</div>
+  <header class="title"><p class="eyebrow">${shed?"It sheds "+esc(prev.chapter.name):esc(prev.chapter.name)+" held"}</p><h1>${esc(f.chapter.name).toUpperCase()}</h1></header>
+  <div class="taunt cast">“${esc(f.chain?"One corridor. One fare. Seven questions, and every answer feeds the next.":TAUNTS[(G.fi*3+G.seed)%TAUNTS.length])}”</div>
+  <div class="card"><p class="eyebrow">${f.chain?"The corridor chain":esc(SESSIONS[f.s])} • ${f.hp} HP</p>
+    <p class="miss">${f.chain?"Midpoint → revenue test → tax wedge → both burdens → revenue → deadweight loss.":"Its trap spell comes first."}</p></div>
+  <div class="stats"><div><div class="n">${G.formMarks.join("")||"—"}</div><div class="l">Forms</div></div><div><div class="n">${G.dmg}</div><div class="l">Damage</div></div><div><div class="n">x${G.best}</div><div class="l">Best combo</div></div></div>
+  <button class="big center" id="goForm"><span class="lbl">${f.chain?"FACE THE CHAIN":"FIGHT"}</span></button>
+  <button class="ghost center" id="quit">Flee to campus</button>`;
+  window.scrollTo({top:0});wantTrack("boss");
+  mountScene(f.chapter);sceneSet("cast");SFX.click();
+  $("#goForm").onclick=()=>{SFX.click();fight()};$("#quit").onclick=home;
+}
 function start(o){clearInterval(attractT);if(!o.__tut&&!load("tutSeen",false)){tutorial(()=>start(Object.assign({__tut:true},o)));return}
   const seed=o.seed||(o.practice?Math.floor(Math.random()*1e9):o.weekly?parseInt(weekId())+7:dayKey());
   const n=o.weekly?12:5;
   TOME_MAX=o.weekly?420:200;
-  const quest=o.review?buildReview(seed,n):o.session?buildChapter(o.session,seed):buildQuest(seed,n);
-  G=Object.assign({},quest,{n,i:0,tome:TOME_MAX,hearts:3,session:o.session||null,combo:0,best:0,dmg:0,log:[],t0:Date.now(),qStart:0,done:false,practice:!!o.practice,weekly:!!o.weekly,review:!!o.review,rival:o.rival||null,usedSecond:false,crits:0});
-  G.chapter=CHAPTERS[G.boss.s]||CHAPTERS[1];
+  const quest=o.weekly?{forms:buildRaid(seed),qs:[],boss:null,seed}
+    :o.review?buildReview(seed,n):o.session?buildChapter(o.session,seed):buildQuest(seed,n);
+  const hearts=3;// the raid resets these per form in loadForm()
+  G=Object.assign({},quest,{n,i:0,tome:TOME_MAX,tomeMax:TOME_MAX,hearts,heartsMax:hearts,fi:0,formMarks:[],cleared:[],missedQs:[],won:false,session:o.session||null,combo:0,best:0,dmg:0,log:[],t0:Date.now(),qStart:0,done:false,practice:!!o.practice,weekly:!!o.weekly,review:!!o.review,rival:o.rival||null,usedSecond:false,crits:0});
+  if(G.forms&&G.forms.length)loadForm();else G.chapter=CHAPTERS[G.boss.s]||CHAPTERS[1];
   Scene.dead=false;fight();
 }
 function fight(){
   clearInterval(timerId);
-  const isBoss=G.i===G.n,q=isBoss?G.boss:G.qs[G.i];G.qStart=Date.now();G.done=false;
+  const slot=!G.forms&&G.i===G.n,q=slot?G.boss:G.qs[G.i],isBoss=slot||(!!G.forms&&heavy(q)),f=G.forms?G.forms[G.fi]:null;G.qStart=Date.now();G.done=false;
   const limit=isBoss?35:q.type==="num"?35:25;
   app.innerHTML=`
   <div class="hud">
-    <div class="row"><span class="eyebrow">${isBoss?"☠ "+esc(G.chapter.name).toUpperCase():(G.weekly?"WEEKLY ":"")+"Q "+(G.i+1)+"/"+G.n} • ${esc(SESSIONS[q.s])}</span>${heartsHTML(G.hearts)}</div>
+    <div class="row"><span class="eyebrow">${f?(f.chain?"CHAIN "+(G.i+1)+"/"+G.n+" • THE CORRIDOR":"FORM "+(G.fi+1)+"/"+G.forms.length+" • "+esc(SESSIONS[f.s])):(isBoss?"☠ "+esc(G.chapter.name).toUpperCase():"Q "+(G.i+1)+"/"+G.n)+" • "+esc(SESSIONS[q.s])}</span>${heartsHTML(G.hearts,G.heartsMax)}</div>
     ${sceneHTML()}
     <div class="row"><span class="eyebrow">TOME</span><span class="combo" id="combo">${G.combo>1?"x"+G.combo+" COMBO":""}</span><span class="hpnum" id="hpTxt">${G.tome}</span><span class="timer" id="timer">${limit}</span></div>
-    <div id="hp">${hpBar(G.tome,TOME_MAX)}</div>
-    ${isBoss?`<div class="taunt cast">${esc(G.chapter.name)} casts <b>${esc(q.spell)}</b>! Dodge by answering it right.</div>`:""}
+    <div id="hp">${hpBar(G.tome,G.tomeMax)}</div>
+    ${q.spell?`<div class="taunt cast">${esc(G.chapter.name)} casts <b>${esc(q.spell)}</b>! Dodge by answering it right.</div>`:f&&f.chain?`<div class="taunt cast">Link ${G.i+1} of ${G.n}. ${G.i>0?"The figure it just gave you is in this one.":"Every answer feeds the next."}</div>`:""}
   </div>
-  <div class="card"><p class="q">${esc(q.q)}</p><div id="answer"></div><div id="why"></div></div>
+  <div class="card"><p class="q">${esc(qtext(q.q))}</p><div id="answer"></div><div id="why"></div></div>
   <div class="two">${S.items.skip>0&&!isBoss?`<button class="ghost center item" id="useSkip">${icon("skip","sm")}<span class="lbl">SKIP (${S.items.skip})</span></button>`:""}${S.items.second>0&&G.hearts<3&&!G.usedSecond?`<button class="ghost center item" id="useSecond">${icon("second","sm")}<span class="lbl">2ND CHANCE (${S.items.second})</span></button>`:""}</div>
   <button class="ghost center" id="quit">Flee to campus</button>`;
   window.scrollTo({top:0});wantTrack(isBoss?"boss":"battle");
-  mountScene((isBoss||G.session)?G.chapter:null);sceneSet(isBoss?"cast":"idle");
-  if(isBoss){const f=$("#fx");if(f){const e=document.createElement("div");e.className="bossIntro";e.innerHTML=`<span>${esc(G.chapter.name)}</span><small>appears</small>`;f.appendChild(e);fxSprite("rune",38,55,44,2200);setTimeout(()=>e.remove(),2200);SFX.bossIn()}}
+  mountScene((isBoss||G.session||G.forms)?G.chapter:null);sceneSet(isBoss?"cast":"idle");
+  if(isBoss&&q.spell){const f=$("#fx");if(f){const e=document.createElement("div");e.className="bossIntro";e.innerHTML=`<span>${esc(G.chapter.name)}</span><small>appears</small>`;f.appendChild(e);fxSprite("rune",38,55,44,2200);setTimeout(()=>e.remove(),2200);SFX.bossIn()}}
   $("#quit").onclick=home;
-  const sk=$("#useSkip");if(sk)sk.onclick=()=>{S.items.skip--;save("items",S.items);G.log.push("⬜");G.i++;SFX.click();toast("Skipped");G.i>G.n?result():fight()};
+  const sk=$("#useSkip");if(sk)sk.onclick=()=>{S.items.skip--;save("items",S.items);G.log.push("⬜");SFX.click();toast("Skipped");advance()};
   const sc=$("#useSecond");if(sc)sc.onclick=()=>{S.items.second--;save("items",S.items);G.hearts++;G.usedSecond=true;SFX.loot();fxSprite("heal",6,20,32,900);toast("Heart restored");sc.remove();document.querySelector(".hearts").outerHTML=heartsHTML(G.hearts)};
   const ans=$("#answer");
   if(q.type==="mc"){ans.className="opts";ans.innerHTML=q.opts.map((o,k)=>`<button class="opt" data-k="${k}"><span class="key">${"ABCD"[k]}</span><span>${esc(o)}</span></button>`).join("");ans.querySelectorAll("button").forEach(b=>b.onclick=()=>answer(+b.dataset.k))}
@@ -478,7 +568,7 @@ function fx(txt,cls){const f=$("#fx");if(!f)return;const e=document.createElemen
 function fmt(t,opt,pg){return t.replace("%s",opt.length>38?opt.slice(0,36)+"…":opt).replace("%p",pg||"?")}
 function answer(v){
   if(G.done)return;G.done=true;clearInterval(timerId);
-  const isBoss=G.i===G.n,q=isBoss?G.boss:G.qs[G.i],secs=(Date.now()-G.qStart)/1000;
+  const slot=!G.forms&&G.i===G.n,q=slot?G.boss:G.qs[G.i],isBoss=slot||(!!G.forms&&heavy(q)),secs=(Date.now()-G.qStart)/1000;
   let ok;if(v===null)ok=false;else if(q.type==="num")ok=Math.abs(v-q.ans)<=q.tol+1e-9;else ok=v===q.a;
   const ans=$("#answer");
   ans.querySelectorAll("button.opt").forEach(b=>{b.disabled=true;if(+b.dataset.k===q.a)setTimeout(()=>b.classList.add("right"),ok?0:350);else if(v!==null&&+b.dataset.k===v&&!ok)b.classList.add("wrong","shakeX");else b.classList.add("dim")});
@@ -488,24 +578,25 @@ function answer(v){
   if(ok){
     G.combo++;G.best=Math.max(G.best,G.combo);const critWin=q.type==="num"?10:q.type==="two"?4:6;crit=secs<critWin;
     const speed=crit?2.0:secs<critWin*2?1.3:1.0,base=isBoss?35:20;
-    dealt=Math.round(base*speed*(1+0.1*(G.combo-1)));
-    S.seen=S.seen||{};S.seen[q.id]=(S.seen[q.id]||0)+1;save("seen",S.seen);G.tome=Math.max(isBoss?0:1,G.tome-dealt);G.dmg+=dealt;G.log.push("🟩");sceneSet("hit");fxSprite(crit?"crit":"slash",56,25,crit?44:34,crit?700:450);Scene.heroPose="attack";setTimeout(()=>{if(Scene.heroPose==="attack")Scene.heroPose="idle"},700);burst(crit?50:24,crit?"#ffffff":"#ffb347");
+    dealt=Math.round(base*speed*comboMult());
+    S.seen=S.seen||{};S.seen[q.id]=(S.seen[q.id]||0)+1;save("seen",S.seen);G.tome=Math.max((isBoss||G.forms)?0:1,G.tome-dealt);G.dmg+=dealt;G.log.push("🟩");sceneSet("hit");fxSprite(crit?"crit":"slash",56,25,crit?44:34,crit?700:450);Scene.heroPose="attack";setTimeout(()=>{if(Scene.heroPose==="attack")Scene.heroPose="idle"},700);burst(crit?50:24,crit?"#ffffff":"#ffb347");
     if(crit){G.crits++;Scene.crit=12;Scene.shake=18;fx("CRITICAL −"+dealt,"crit");SFX.crit()}else{fx("−"+dealt,"hit");SFX.hit()}
     taunt=SULK[Math.floor(Math.random()*SULK.length)];
     if(G.tome<=0){setTimeout(()=>{sceneSet("dead");burst(60,"#7bdc5a");SFX.death()},300)}
   }else{
-    const broke=G.combo>1;G.combo=0;G.hearts--;G.log.push("🟥");const heal=isBoss?15:8;G.tome=Math.min(TOME_MAX,G.tome+heal);
-    S.missed[q.id]=(S.missed[q.id]||0)+1;save("missed",S.missed);S.seen=S.seen||{};S.seen[q.id]=(S.seen[q.id]||0)+1;save("seen",S.seen);sceneSet("cast");Scene.heroPose="hit";setTimeout(()=>{if(Scene.heroPose==="hit")Scene.heroPose="idle"},900);burst(14,"#ff5c5c");fx("+"+heal,"heal");SFX.miss();if(broke){setTimeout(SFX.combo,250);fx("COMBO BROKEN","broke")}
+    const broke=G.combo>1;G.combo=0;G.hearts=Math.max(0,G.hearts-1);G.log.push("🟥");const heal=isBoss?15:8;G.tome=Math.min(G.tomeMax,G.tome+heal);
+    S.missed[q.id]=(S.missed[q.id]||0)+1;save("missed",S.missed);if(G.missedQs)G.missedQs.push(q);S.seen=S.seen||{};S.seen[q.id]=(S.seen[q.id]||0)+1;save("seen",S.seen);sceneSet("cast");Scene.heroPose="hit";setTimeout(()=>{if(Scene.heroPose==="hit")Scene.heroPose="idle"},900);burst(14,"#ff5c5c");fx("+"+heal,"heal");SFX.miss();if(broke){setTimeout(SFX.combo,250);fx("COMBO BROKEN","broke")}
     document.body.classList.add("flash");setTimeout(()=>document.body.classList.remove("flash"),400);
-    const hd=document.querySelector(".hearts");if(hd)hd.outerHTML=heartsHTML(G.hearts);
+    const hd=document.querySelector(".hearts");if(hd)hd.outerHTML=heartsHTML(G.hearts,G.heartsMax);
     const pg=(q.src||"").match(/p\.([\d;, ]+)/);
     taunt=v===null?SLOW[Math.floor(Math.random()*SLOW.length)]:q.type==="num"?"“"+v+"”? My calculator weeps.":fmt(MOCK[Math.floor(Math.random()*MOCK.length)],q.opts[v],pg?pg[1]:null);
   }
-  $("#hp").innerHTML=hpBar(G.tome,TOME_MAX);$("#hpTxt").textContent=G.tome;const cb=$("#combo");if(cb){cb.textContent=G.combo>1?"x"+G.combo+" COMBO":"";cb.classList.toggle("hot",G.combo>=3)}
+  $("#hp").innerHTML=hpBar(G.tome,G.tomeMax);$("#hpTxt").textContent=G.tome;const cb=$("#combo");if(cb){cb.textContent=G.combo>1?"x"+G.combo+" COMBO":"";cb.classList.toggle("hot",G.combo>=3)}
   const correctTxt=q.type==="num"?q.ans.toLocaleString():q.opts[q.a];
-  $("#why").innerHTML=`<div class="taunt ${ok?"":"cast"}">“${esc(taunt)}”</div><div class="why ${ok?"ok":"bad"}"><b>${ok?(crit?"CRITICAL. ":isBoss?"DODGED. ":"HIT. "):v===null?"TOO SLOW. ":"MISS. "}</b>${esc(q.why)}${ok?"":" <span class='muted'>Answer: "+esc(correctTxt)+"</span>"}${q.src?"<div class='src'>"+esc(q.src)+"</div>":""}</div>
-  ${(!isBoss&&G.tome<=1)?`<div class="taunt">The Tome is at 1 HP and clinging to its spine. Only the chapter boss can finish it.</div>`:""}<button class="big center" id="next"><span class="lbl">${G.hearts<=0||G.tome<=0||G.i>=G.n?"SEE RESULT":"NEXT ▶"}</span></button>`;
-  $("#next").onclick=()=>{G.i++;if(G.hearts<=0||G.tome<=0||G.i>G.n)result();else fight()};
+  $("#why").innerHTML=`<div class="taunt ${ok?"":"cast"}">“${esc(taunt)}”</div><div class="why ${ok?"ok":"bad"}"><b>${ok?(crit?"CRITICAL. ":isBoss?"DODGED. ":"HIT. "):v===null?"TOO SLOW. ":"MISS. "}</b>${esc(qtext(q.why))}${ok?"":" <span class='muted'>Answer: "+esc(correctTxt)+"</span>"}${q.src?"<div class='src'>"+esc(q.src)+"</div>":""}</div>
+  ${(G.forms&&G.tome<=0&&G.i<G.n-1)?`<div class="taunt">This form is shedding. Keep swinging \u2014 every hit still counts for the team.</div>`:""}
+  ${(!G.forms&&!isBoss&&G.tome<=1)?`<div class="taunt">The Tome is at 1 HP and clinging to its spine. Only the chapter boss can finish it.</div>`:""}<button class="big center" id="next"><span class="lbl">${nextLabel()}</span></button>`;
+  $("#next").onclick=advance;
   setTimeout(()=>{const w=$("#why");if(w)w.scrollIntoView({behavior:"smooth",block:"nearest"})},200);
 }
 function rollLoot(){if(Math.random()<.35)return null;const l=LOOT[Math.floor(Math.random()*LOOT.length)];
@@ -516,7 +607,7 @@ function rollLoot(){if(Math.random()<.35)return null;const l=LOOT[Math.floor(Mat
 function rivalCode(dmg,secs){return "EM-"+G.seed.toString(36)+"-"+dmg.toString(36)+"-"+secs.toString(36)+"-"+(S.name||"anon").replace(/[^a-z0-9]/gi,"").slice(0,12)}
 function result(){
   clearInterval(timerId);
-  const won=G.tome<=0,secs=Math.round((Date.now()-G.t0)/1000),mm=Math.floor(secs/60),ss=String(secs%60).padStart(2,"0"),dn=questDay(),today=dayKey();
+  const won=G.forms?G.won:G.tome<=0,shed=G.formMarks?G.formMarks.filter(m=>m==="🟩").length:0,secs=Math.round((Date.now()-G.t0)/1000),mm=Math.floor(secs/60),ss=String(secs%60).padStart(2,"0"),dn=questDay(),today=dayKey();
   let streakMsg="";
   if(!G.practice&&!G.weekly&&!G.rival&&S.lastDay!==today){
     const y=new Date();y.setDate(y.getDate()-1);
@@ -524,15 +615,16 @@ function result(){
     else S.streak=S.lastDay===dayKey(y)?S.streak+1:1;
     S.lastDay=today;
   }
-  S.totalDmg+=G.dmg;if(won)S.wins[G.boss.s]=(S.wins[G.boss.s]||0)+1;
+  S.totalDmg+=G.dmg;if(won&&G.boss)S.wins[G.boss.s]=(S.wins[G.boss.s]||0)+1;
+  if(G.forms&&G.cleared)G.cleared.forEach(s=>{S.wins[s]=(S.wins[s]||0)+1});
   const prev=S.best[today];if(!G.practice&&(!prev||G.dmg>prev.dmg))S.best[today]={dmg:G.dmg,secs};
   const loot=won?rollLoot():null;saveAll();postDamage(G.dmg);
-  const newlyFreed=won&&sessionWins(G.boss.s)===3;
+  const newlyFreed=!G.forms&&won&&G.boss&&sessionWins(G.boss.s)===3;
   const code=rivalCode(G.dmg,secs);
-  const card=`${S.team?S.team+" • ":""}${S.hat?HATS[S.hat]+" ":""}Econ Monster ${G.weekly?"Weekly":G.practice?"Practice":"Day "+dn} — ${won?G.chapter.name+" slain":"Tome HP "+G.tome} in ${mm}:${ss} ⚔️${G.log.join("")} — ${G.dmg} dmg${G.crits?" • "+G.crits+" crit":""} • x${G.best} combo — 🔥${S.streak}${G.rival?"\nvs "+G.rival.name+": "+G.rival.dmg+" dmg in "+Math.floor(G.rival.secs/60)+":"+String(G.rival.secs%60).padStart(2,"0")+" — "+(G.dmg>G.rival.dmg?"I WIN":G.dmg<G.rival.dmg?"THEY WIN":"TIE"):"\nRival me: "+code}`;
-  const correct=G.log.filter(x=>x==="🟩").length,total=G.n+1;
+  const card=`${S.team?S.team+" • ":""}${S.hat?HATS[S.hat]+" ":""}Econ Monster ${G.weekly?"Weekly":G.practice?"Practice":"Day "+dn} — ${G.forms?(won?"the Tome UNMADE":shed+"/"+G.forms.length+" forms shed "+G.formMarks.join("")):won?G.chapter.name+" slain":"Tome HP "+G.tome} in ${mm}:${ss} ⚔️${G.log.join("")} — ${G.dmg} dmg${G.crits?" • "+G.crits+" crit":""} • x${G.best} combo — 🔥${S.streak}${G.rival?"\nvs "+G.rival.name+": "+G.rival.dmg+" dmg in "+Math.floor(G.rival.secs/60)+":"+String(G.rival.secs%60).padStart(2,"0")+" — "+(G.dmg>G.rival.dmg?"I WIN":G.dmg<G.rival.dmg?"THEY WIN":"TIE"):"\nRival me: "+code}`;
+  const correct=G.log.filter(x=>x==="🟩").length,total=G.forms?G.log.length:G.n+1;
   app.innerHTML=`
-  <header class="title"><p class="eyebrow">${G.weekly?"Weekly boss":G.review?"Review drill":G.session?CHAPTERS[G.session].loc:G.practice?"Practice fight":G.rival?"Rival fight":"Daily Quest #"+dn}</p><h1 class="${won?"victory":"lose"}">${won?esc(G.chapter.name).toUpperCase()+"<br>SLAIN":G.hearts<=0?"DEVOURED":"TOME ESCAPED"}</h1></header>
+  <header class="title"><p class="eyebrow">${G.weekly?"Weekly boss":G.review?"Review drill":G.session?CHAPTERS[G.session].loc:G.practice?"Practice fight":G.rival?"Rival fight":"Daily Quest #"+dn}</p><h1 class="${won?"victory":"lose"}">${G.forms?(won?"THE TOME<br>UNMADE":shed+" OF "+G.forms.length+"<br>FORMS SHED"):won?esc(G.chapter.name).toUpperCase()+"<br>SLAIN":G.hearts<=0?"DEVOURED":"TOME ESCAPED"}</h1></header>
   ${sceneHTML()}
   ${streakMsg?`<div class="taunt"><b>${esc(streakMsg)}</b></div>`:""}
   ${loot?`<div class="loot"><span class="eyebrow">LOOT DROP</span><p>${loot.k==="hat"?HATS[loot.v]+" "+loot.v+" hat (equipped)":loot.k==="title"?"Title: <em>"+esc(loot.v)+"</em>":ITEMS[loot.v].n+" — "+ITEMS[loot.v].d}</p></div>`:""}
@@ -542,7 +634,7 @@ function result(){
   <div class="stats"><div><div class="n">${G.dmg}</div><div class="l">Damage</div></div><div><div class="n">${mm}:${ss}</div><div class="l">Time</div></div><div><div class="n">${correct}/${total}</div><div class="l">Correct</div></div></div>
   <div class="stats"><div><div class="n">x${G.best}</div><div class="l">Best combo</div></div><div><div class="n">${G.crits}</div><div class="l">Crits</div></div><div><div class="n rk">${rankFor(S.totalDmg)}</div><div class="l">Rank</div></div></div>
   <div class="card"><p class="eyebrow">Share card</p><div class="share" id="card">${esc(card)}</div><button class="big center" id="copy"><span class="lbl">COPY SHARE CARD</span></button></div>
-  ${G.log.includes("🟥")?`<div class="card"><p class="eyebrow">The Tome beat you on</p>${[...G.qs,G.boss].filter((q,k)=>G.log[k]==="🟥").map(q=>`<p class="miss"><b>${esc(q.term||q.spell)}</b> <span class="muted small">${esc(SESSIONS[q.s])}</span></p>`).join("")}<p class="muted small">These show up more often next time.</p></div>`:""}
+  ${(G.missedQs&&G.missedQs.length)?`<div class="card"><p class="eyebrow">The Tome beat you on</p>${G.missedQs.map(q=>`<p class="miss"><b>${esc(q.term||q.spell)}</b> <span class="muted small">${esc(SESSIONS[q.s])}</span></p>`).join("")}<p class="muted small">These show up more often next time.</p></div>`:""}
   <button class="ghost center" id="again"><span class="lbl">${G.practice?"FIGHT AGAIN":"PRACTICE FIGHT"}</span></button>
   <button class="ghost center" id="home"><span class="lbl">BACK TO CAMPUS</span></button>`;
   mountScene(G.chapter);Scene.dead=won;Scene.heroPose=won?"win":"hit";if(loot)setTimeout(()=>fxSprite("chest",40,30,36,1400),600);if(!won)sceneSet("cast");
@@ -649,7 +741,7 @@ function renderWeekly(){const el=$("#weekly");if(!el)return;const wt=weeklyTotal
   ${!dbReady?"<p class='muted small'>Showing this phone only. Team pooling is not configured yet.</p>":!normTeam(S.team)?"<p class='muted small'>No team code yet, so this is only your own damage. Add your coach\u2019s code on the home screen to join the team raid.</p>":""}</div>${seasonHTML(dbReady?roster:[{weeks:S.weekLocal}])}`}
 function weekly(){wantTrack("overworld");
   app.innerHTML=`<header class="title"><p class="eyebrow">Everyone’s damage pools into one bar</p><h1>Weekly Boss</h1></header>${sceneHTML()}<div id="weekly"></div>
-  <button class="big" id="fightW"><span class="lbl">WEEKLY RAID</span><span class="sub">12 questions across Sessions 1–${TAUGHT} + boss. Same seed for the whole team.</span></button>
+  <button class="big" id="fightW"><span class="lbl">WEEKLY RAID</span><span class="sub">${RAID.forms} forms, each led by its trap spell, then the ${CHAIN.length}-link corridor chain. Same seed for the whole team.</span></button>
   <button class="ghost center" id="home"><span class="lbl">BACK TO CAMPUS</span></button>`;
   mountScene(CHAPTERS[((parseInt(weekId())%8)+1)]);sceneSet("cast");renderWeekly();
   $("#fightW").onclick=()=>{SFX.click();start({weekly:true})};$("#home").onclick=home;

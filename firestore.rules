@@ -24,7 +24,18 @@ service cloud.firestore {
     // The weekly raid monster: one document per team per week, created by whoever
     // lands the first hit. Damage is applied with increment() and may only ever go
     // UP, so a student cannot heal the Tome by rewriting the total, and a single
-    // write is capped well above a real fight but below a full bar.
+    // write is capped well above a real fight but below a full bar (WEEK_MAX 5000).
+    //
+    // THE 4000 BELOW IS COUPLED TO THE ENGINE. One postDamage() call carries a whole
+    // run, so the cap must exceed the best possible single run. The worst case is
+    // every raid beat "heavy" and critted: base 35 * crit 2.0 * COMBO_CAP 1.8 = 126
+    // per hit, over RAID.forms * (perForm+1) + CHAIN.length beats. At 25 beats that
+    // ceiling is 2898; it was 3000 here, which left room for zero extra beats. Raise
+    // this whenever RAID.forms, RAID.perForm, CHAIN, COMBO_CAP or the crit multiplier
+    // goes up, and keep it under WEEK_MAX. Breaching it fails SILENTLY: postDamage
+    // swallows the error in a catch, watchRaid's onSnapshot error handler is ()=>{},
+    // and teamTotal() falls back to summing players/*.weeks[wk] -- so the bar still
+    // moves and only the strongest student's damage quietly vanishes.
     match /raids/{id} {
       allow read: if request.auth != null;
       allow create: if request.auth != null
@@ -34,7 +45,7 @@ service cloud.firestore {
         && request.resource.data.week is string
         && request.resource.data.max is number
         && request.resource.data.total is number
-        && request.resource.data.total >= 0 && request.resource.data.total <= 3000
+        && request.resource.data.total >= 0 && request.resource.data.total <= 4000
         && request.resource.data.updated is number;
       allow update: if request.auth != null
         && request.resource.data.keys().hasOnly(['team','week','max','total','updated'])
@@ -42,7 +53,7 @@ service cloud.firestore {
         && request.resource.data.week == resource.data.week
         && request.resource.data.total is number
         && request.resource.data.total >= resource.data.total
-        && request.resource.data.total <= resource.data.total + 3000
+        && request.resource.data.total <= resource.data.total + 4000
         && request.resource.data.updated is number;
       allow delete: if false;
     }

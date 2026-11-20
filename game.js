@@ -372,12 +372,58 @@ function codeCards(){const rows=(dbReady&&roster.length?roster:[{id:saveCode(),n
   w.document.write(`<!doctype html><title>Econ Monster save codes</title><style>body{font:14px/1.3 Arial,sans-serif;margin:16px}h1{font-size:18px}.g{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.c{border:2px dashed #2d4f9d;border-radius:8px;padding:10px;break-inside:avoid}.n{font-weight:900;font-size:16px}.k{font:700 18px/1.2 Menlo,monospace;letter-spacing:.06em;margin:6px 0}.s{color:#555;font-size:12px}@media print{button{display:none}}</style>
   <h1>Escape from the Econ Monster • save codes${S.team?" • "+S.team.replace(/[<>&]/g,""):""}</h1><p class="s">Hand each student their card. Bag → LOAD SAVE on any phone restores their progress. ${new Date().toLocaleDateString()}</p><button onclick="print()">Print</button><div class="g">${rows.map(r=>`<div class="c"><div class="n">${String(r.name||"(no name)").replace(/[<>&]/g,"")}</div><div class="k">${r.id}</div><div class="s">${HEROES[r.hero]?HEROES[r.hero].name:""} • streak ${r.streak||0}</div></div>`).join("")}</div>`);w.document.close()}
 // ---------- ADD TO HOME SCREEN ----------
+// The old copy said "tap Share" to every iOS user. Three ways that failed: iPadOS reports a
+// Macintosh user-agent so iPads never matched and got the Android text; Chrome on iOS keeps
+// Add to Home Screen behind the bottom-right dots, not the share sheet; and a link opened from
+// Instagram, Messages or Gmail runs in an in-app WebView that has no add-to-home-screen at all,
+// so there is no Share to find and no wording that could help. Each case now gets its own steps.
 let installEvt=null;window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();installEvt=e});
 function standalone(){return window.matchMedia("(display-mode: standalone)").matches||navigator.standalone===true}
-function a2hsHTML(){if(standalone()||load("a2hsOff",false))return "";const visits=load("visits",0);if(visits<2)return "";
-  const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
-  return `<div class="card a2hs"><p class="eyebrow">Put it on your home screen</p><p class="small">${ios?"Tap <b>Share</b> (the box with the arrow) then <b>Add to Home Screen</b>. Full screen, no browser bar.":installEvt?"One tap installs it like an app.":"Open the browser menu (⋮) and tap <b>Add to Home screen</b>."}</p><div class="${!ios&&installEvt?"two":""}">${!ios&&installEvt?`<button class="big center" id="a2hsGo"><span class="lbl">INSTALL</span></button>`:""}<button class="ghost center" id="a2hsNo"><span class="lbl">NOT NOW</span></button></div></div>`}
-function a2hsWire(){const g=$("#a2hsGo");if(g)g.onclick=async()=>{if(!installEvt)return;installEvt.prompt();const r=await installEvt.userChoice;installEvt=null;if(r&&r.outcome==="accepted")save("a2hsOff",true);home()};const n=$("#a2hsNo");if(n)n.onclick=()=>{save("a2hsOff",true);home()}}
+function isIOS(){const ua=navigator.userAgent;
+  return /iphone|ipod|ipad/i.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1)}
+function isAndroid(){return /android/i.test(navigator.userAgent)}
+// Apps that open links in their own WebView. None of them can install anything.
+function inApp(){return /FBAN|FBAV|FB_IAB|Instagram|Snapchat|LinkedInApp|MicroMessenger|Line\/|Pinterest|GSA\//i.test(navigator.userAgent)}
+function iosBrowser(){const ua=navigator.userAgent;
+  return /CriOS/.test(ua)?"chrome":/FxiOS/.test(ua)?"firefox":/EdgiOS/.test(ua)?"edge":"safari"}
+function steps(list){return "<ol class='a2hssteps'>"+list.map(s=>"<li>"+s+"</li>").join("")+"</ol>"}
+
+function a2hsHTML(){if(standalone()||load("a2hsOff",false))return "";
+  if(!isIOS()&&!isAndroid())return "";            // a home screen is a phone thing
+  const visits=load("visits",0);if(visits<2)return "";
+  let body,extra="";
+  if(inApp()){
+    body="<p class='small'>You opened this inside another app, and that app’s browser can’t add anything to your home screen. Open it in your real browser first:</p>"+
+      steps(["Tap the <b>⋯</b> or <b>⋮</b> button in this bar.",
+             "Choose <b>Open in "+(isIOS()?"Safari":"Chrome")+"</b>.",
+             "Then come back here — this box will tell you the rest."]);
+    extra=`<button class="ghost center" id="a2hsCopy"><span class="lbl">COPY THE LINK</span></button>`;
+  } else if(isIOS()){
+    const b=iosBrowser();
+    if(b==="chrome") body=steps(["Tap the <b>⋯</b> button at the <b>bottom right</b>.",
+                                 "Scroll down and tap <b>Add to Home Screen</b>.","Tap <b>Add</b>."]);
+    else if(b==="safari") body=steps([
+      "Find the <b>Share</b> button — a square with an arrow pointing out of the top.",
+      "It sits in the bar at the <b>bottom</b> of the screen. If your address bar is at the top instead, look at the <b>top right</b>.",
+      "Scroll down that list and tap <b>Add to Home Screen</b>, then <b>Add</b>."]);
+    else body=steps(["Open this browser’s menu.","Tap <b>Add to Home Screen</b>.",
+                     "No such option? Open this page in <b>Safari</b> and try again."]);
+  } else if(installEvt){
+    body="<p class='small'>One tap and it installs like an app \u2014 full screen, no browser bar, its own icon.</p>";
+  } else {
+    body=steps(["Tap the <b>⋮</b> menu at the <b>top right</b>.",
+                "Tap <b>Add to Home screen</b> (some phones say <b>Install app</b>).","Tap <b>Add</b>."]);
+  }
+  const go=(!isIOS()&&installEvt&&!inApp())?`<button class="big center" id="a2hsGo"><span class="lbl">INSTALL</span></button>`:"";
+  return `<div class="card a2hs"><p class="eyebrow">Put it on your home screen</p>${body}
+    ${go}${extra}<button class="ghost center" id="a2hsNo"><span class="lbl">NOT NOW</span></button></div>`}
+
+function a2hsWire(){
+  const g=$("#a2hsGo");if(g)g.onclick=async()=>{if(!installEvt)return;installEvt.prompt();
+    const r=await installEvt.userChoice;installEvt=null;if(r&&r.outcome==="accepted")save("a2hsOff",true);home()};
+  const c=$("#a2hsCopy");if(c)c.onclick=()=>{const txt=location.href;const fb=()=>toast("Select & copy the address");
+    try{navigator.clipboard.writeText(txt).then(()=>toast("Link copied")).catch(fb)}catch(e){fb()}};
+  const n=$("#a2hsNo");if(n)n.onclick=()=>{save("a2hsOff",true);home()}}
 save("visits",load("visits",0)+1);
 
 // ---------- UI ----------

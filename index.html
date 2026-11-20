@@ -63,6 +63,10 @@ p{margin:0}
 .taunt b{font-family:var(--pixel);font-size:.65rem;font-style:normal}
 .card{background:var(--panel);border:3px solid var(--line);border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:12px;box-shadow:0 0 0 3px #000}
 .q{font-size:1.15rem;font-weight:900;line-height:1.35}
+/* flashcard: fixed height so the card does not jump when the answer is revealed */
+.fc{cursor:pointer;min-height:148px;justify-content:center;-webkit-tap-highlight-color:transparent}
+.fc .q{text-align:center}
+.fc:active{transform:translateY(2px)}
 button{font-family:var(--body);font-weight:900;font-size:1rem;border:3px solid #000;border-radius:6px;padding:12px 14px;cursor:pointer;color:#1a1408;background:var(--accent);box-shadow:0 5px 0 var(--accentDk),0 5px 0 3px #000;transition:transform .06s,box-shadow .06s;width:100%;text-align:left;display:flex;flex-direction:column;gap:3px}
 button:active{transform:translateY(4px);box-shadow:0 1px 0 var(--accentDk),0 1px 0 3px #000}
 button:focus-visible{outline:3px solid #fff;outline-offset:3px}

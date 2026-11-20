@@ -414,6 +414,7 @@ function home(){
   <button class="big pulse" id="startDaily"><span class="lbl">${played?"REPLAY QUEST #"+dn:"\u25b6 DAILY QUEST #"+dn}</span><span class="sub">5 questions + chapter boss • Sessions 1–${TAUGHT}</span></button>
   ${a2hsHTML()}
   <button class="ghost" id="weeklyBtn"><span class="lbl">WEEKLY BOSS</span><span class="sub">${esc(weeklyBtnSub())}</span></button>
+  <button class="ghost" id="reviewBtn"><span class="lbl">REVIEW</span><span class="sub">${esc(reviewSub())}</span></button>
   <div class="two"><button class="ghost center" id="mapBtn"><span class="lbl">CAMPUS MAP</span></button><button class="ghost center" id="rivalBtn"><span class="lbl">RIVAL</span></button></div>
   <button class="ghost center" id="storyBtn"><span class="lbl">\ud83d\udcd6 THE STORY${load("storySeen",false)?"":" \u2022 NEW"}</span></button>
   <div class="two"><button class="ghost center" id="startPractice"><span class="lbl">PRACTICE</span></button><button class="ghost center" id="bagBtn"><span class="lbl">BAG (${(S.items.skip||0)+(S.items.second||0)})</span></button></div>
@@ -425,6 +426,7 @@ function home(){
   $("#startDaily").onclick=()=>{SFX.click();start({practice:false})};$("#startPractice").onclick=()=>{SFX.click();start({practice:true})};
   $("#weeklyBtn").onclick=()=>{SFX.click();weekly()};$("#storyBtn").onclick=()=>{SFX.click();story()};$("#mapBtn").onclick=()=>{SFX.click();campus()};$("#rivalBtn").onclick=()=>{SFX.click();rival()};$("#bagBtn").onclick=()=>{SFX.click();bag()};
   $("#coachBtn").onclick=()=>{SFX.click();coachGate()};
+  $("#reviewBtn").onclick=()=>{SFX.click();RV={i:0,open:false};review()};
   a2hsWire();
   $("#pname").oninput=e=>{S.name=e.target.value.trim();save("name",S.name);cloudPush()};
   $("#team").oninput=e=>{S.team=normTeam(e.target.value);e.target.value=S.team;save("team",S.team);cloudPush();if(dbReady){watchRoster();watchRaid()}};
@@ -435,8 +437,8 @@ function start(o){clearInterval(attractT);if(!o.__tut&&!load("tutSeen",false)){t
   const seed=o.seed||(o.practice?Math.floor(Math.random()*1e9):o.weekly?parseInt(weekId())+7:dayKey());
   const n=o.weekly?12:5;
   TOME_MAX=o.weekly?420:200;
-  const quest=o.session?buildChapter(o.session,seed):buildQuest(seed,n);
-  G=Object.assign({},quest,{n,i:0,tome:TOME_MAX,hearts:3,session:o.session||null,combo:0,best:0,dmg:0,log:[],t0:Date.now(),qStart:0,done:false,practice:!!o.practice,weekly:!!o.weekly,rival:o.rival||null,usedSecond:false,crits:0});
+  const quest=o.review?buildReview(seed,n):o.session?buildChapter(o.session,seed):buildQuest(seed,n);
+  G=Object.assign({},quest,{n,i:0,tome:TOME_MAX,hearts:3,session:o.session||null,combo:0,best:0,dmg:0,log:[],t0:Date.now(),qStart:0,done:false,practice:!!o.practice,weekly:!!o.weekly,review:!!o.review,rival:o.rival||null,usedSecond:false,crits:0});
   G.chapter=CHAPTERS[G.boss.s]||CHAPTERS[1];
   Scene.dead=false;fight();
 }
@@ -528,7 +530,7 @@ function result(){
   const card=`${S.team?S.team+" • ":""}${S.hat?HATS[S.hat]+" ":""}Econ Monster ${G.weekly?"Weekly":G.practice?"Practice":"Day "+dn} — ${won?G.chapter.name+" slain":"Tome HP "+G.tome} in ${mm}:${ss} ⚔️${G.log.join("")} — ${G.dmg} dmg${G.crits?" • "+G.crits+" crit":""} • x${G.best} combo — 🔥${S.streak}${G.rival?"\nvs "+G.rival.name+": "+G.rival.dmg+" dmg in "+Math.floor(G.rival.secs/60)+":"+String(G.rival.secs%60).padStart(2,"0")+" — "+(G.dmg>G.rival.dmg?"I WIN":G.dmg<G.rival.dmg?"THEY WIN":"TIE"):"\nRival me: "+code}`;
   const correct=G.log.filter(x=>x==="🟩").length,total=G.n+1;
   app.innerHTML=`
-  <header class="title"><p class="eyebrow">${G.weekly?"Weekly boss":G.session?CHAPTERS[G.session].loc:G.practice?"Practice fight":G.rival?"Rival fight":"Daily Quest #"+dn}</p><h1 class="${won?"victory":"lose"}">${won?esc(G.chapter.name).toUpperCase()+"<br>SLAIN":G.hearts<=0?"DEVOURED":"TOME ESCAPED"}</h1></header>
+  <header class="title"><p class="eyebrow">${G.weekly?"Weekly boss":G.review?"Review drill":G.session?CHAPTERS[G.session].loc:G.practice?"Practice fight":G.rival?"Rival fight":"Daily Quest #"+dn}</p><h1 class="${won?"victory":"lose"}">${won?esc(G.chapter.name).toUpperCase()+"<br>SLAIN":G.hearts<=0?"DEVOURED":"TOME ESCAPED"}</h1></header>
   ${sceneHTML()}
   ${streakMsg?`<div class="taunt"><b>${esc(streakMsg)}</b></div>`:""}
   ${loot?`<div class="loot"><span class="eyebrow">LOOT DROP</span><p>${loot.k==="hat"?HATS[loot.v]+" "+loot.v+" hat (equipped)":loot.k==="title"?"Title: <em>"+esc(loot.v)+"</em>":ITEMS[loot.v].n+" — "+ITEMS[loot.v].d}</p></div>`:""}
@@ -649,6 +651,79 @@ function weekly(){wantTrack("overworld");
   <button class="ghost center" id="home"><span class="lbl">BACK TO CAMPUS</span></button>`;
   mountScene(CHAPTERS[((parseInt(weekId())%8)+1)]);sceneSet("cast");renderWeekly();
   $("#fightW").onclick=()=>{SFX.click();start({weekly:true})};$("#home").onclick=home;
+}
+
+// ---------- REVIEW ----------
+// Every answer already records missed[] and seen[], and the drill quietly weights a
+// missed question 3x. None of that was ever visible. This screen makes it studiable.
+let QIDX=null,RV={i:0,open:false};
+function qIndex(){if(!QIDX){QIDX={};BANK.forEach(q=>QIDX[q.id]=q);BOSSES.forEach(b=>QIDX[b.id]=b)}return QIDX}
+// 14 of 566 questions are boss spells with no term; they carry a spell name instead.
+function cardFront(q){return q.term||q.spell||SESSIONS[q.s]||"Term"}
+
+// Questions the Tome has beaten them on, worst first.
+function troubled(){const by=qIndex(),seen=S.seen||{};
+  return Object.entries(S.missed||{}).map(([id,n])=>({id,n:+n,q:by[id]}))
+    .filter(x=>x.q&&x.n>0&&x.q.s<=TAUGHT)
+    .map(x=>{const sn=Math.max(x.n,seen[x.id]||x.n);return Object.assign(x,{seen:sn,rate:Math.round(x.n/sn*100)})})
+    .sort((a,b)=>b.n-a.n||b.rate-a.rate)}
+
+function sessionAccuracy(){const by=qIndex(),agg={};
+  const add=(id,k,v)=>{const q=by[id];if(!q||q.s>TAUGHT)return;(agg[q.s]=agg[q.s]||{seen:0,miss:0})[k]+=v};
+  Object.entries(S.seen||{}).forEach(([id,v])=>add(id,"seen",+v));
+  Object.entries(S.missed||{}).forEach(([id,v])=>add(id,"miss",+v));
+  return Object.entries(agg).map(([s,v])=>({s:+s,name:SESSIONS[s],seen:v.seen,miss:v.miss,
+      acc:v.seen?Math.round((1-Math.min(v.miss,v.seen)/v.seen)*100):100}))
+    .filter(x=>x.seen>0).sort((a,b)=>a.acc-b.acc)}
+
+// "Got it" halves the miss count rather than clearing it: knowing a term and
+// answering it under a timer are not the same thing, so the drill keeps checking.
+function gotIt(id){const left=Math.floor((S.missed[id]||0)/2);
+  if(left>0)S.missed[id]=left;else delete S.missed[id];
+  save("missed",S.missed);cloudPush();return left}
+
+function buildReview(seed,n){const rnd=mulberry(seed);const t=troubled();
+  const picked=[],used=new Set();
+  t.forEach(x=>{if(picked.length<n&&!used.has(x.q.id)){used.add(x.q.id);picked.push(x.q)}});
+  // fewer misses than the fight needs: top up so a review is always a full fight
+  const extra=BANK.filter(q=>q.s<=TAUGHT&&!used.has(q.id));
+  while(picked.length<n&&extra.length){const q=extra.splice(Math.floor(rnd()*extra.length),1)[0];used.add(q.id);picked.push(q)}
+  const ls=picked.length?picked[picked.length-1].s:1;
+  let bosses=BOSSES.filter(b=>b.s===ls&&b.s<=TAUGHT);if(!bosses.length)bosses=BOSSES.filter(b=>b.s<=TAUGHT);
+  return {qs:picked,boss:bosses[Math.floor(rnd()*bosses.length)],seed}}
+
+function reviewSub(){const t=troubled().length;
+  return t?t+" term"+(t===1?"":"s")+" the Tome caught you on":"Nothing to review yet"}
+
+function review(){wantTrack("overworld");
+  const t=troubled(),acc=sessionAccuracy();
+  if(RV.i>=t.length)RV.i=0;
+  const x=t[RV.i],q=x?x.q:null;
+  app.innerHTML=`<header class="title"><p class="eyebrow">Study what it beat you on</p><h1>Review</h1><div class="tartan" aria-hidden="true"></div></header>
+  ${q?`<div class="card fc" id="flip">
+      <p class="eyebrow">${esc(SESSIONS[q.s]||"")} • missed ${x.n}\u00d7 • ${x.rate}% miss rate</p>
+      <p class="q">${esc(cardFront(q))}</p>
+      <p class="small">${esc(q.q)}</p>
+      ${RV.open?`<div class="why ok">${esc(q.why)}</div>${q.src?`<div class="src">${esc(q.src)}</div>`:""}`
+               :`<p class="muted small">Tap the card to see the answer</p>`}
+    </div>
+    <div class="row"><span class="eyebrow">CARD ${RV.i+1} / ${t.length}</span></div>
+    <div class="two">
+      <button class="ghost center" id="gotIt"><span class="lbl">GOT IT</span></button>
+      <button class="ghost center" id="nextCard"><span class="lbl">NEXT \u25b6</span></button>
+    </div>
+    <button class="big center" id="drill"><span class="lbl">DRILL THESE</span><span class="sub">Fight using the questions you miss most</span></button>`
+   :`<div class="card"><p class="muted">Nothing to review yet. Play a quest and anything the Tome catches you on lands here.</p></div>
+     <button class="big center" id="drill"><span class="lbl">PRACTICE FIGHT</span></button>`}
+  ${acc.length?`<div class="card"><p class="eyebrow">Weak spots</p>${acc.slice(0,8).map(a=>`<div class="srow"><span class="sn">${esc(a.name)}</span><div class="sbar"><i style="width:${a.acc}%" class="${a.acc<70?"low":""}"></i></div><span class="sv">${a.acc}%<small> ${a.seen}</small></span></div>`).join("")}<p class="muted small">Accuracy per session. Small number = questions seen.</p></div>`:""}
+  <button class="ghost center" id="home"><span class="lbl">BACK TO CAMPUS</span></button>`;
+  $("#home").onclick=home;
+  const fl=$("#flip");if(fl)fl.onclick=()=>{RV.open=!RV.open;SFX.click();review()};
+  const nx=$("#nextCard");if(nx)nx.onclick=()=>{RV.i=t.length?(RV.i+1)%t.length:0;RV.open=false;SFX.click();review()};
+  const gi=$("#gotIt");if(gi)gi.onclick=()=>{const left=gotIt(x.id);SFX.loot();
+    toast(left?"Still in the deck, half as often":"Cleared from your deck");
+    if(RV.i>=troubled().length)RV.i=0;RV.open=false;review()};
+  $("#drill").onclick=()=>{SFX.click();start({practice:true,review:true})};
 }
 
 // ---------- CAMPUS MAP ----------

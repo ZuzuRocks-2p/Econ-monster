@@ -51,3 +51,23 @@ One Firestore document per team per week: `raids/{TEAMCODE}_{mondayYYYYMMDD}`, h
 Pushing to `main` updates the app, but **Firestore rules are not deployed from this repo.**
 Paste `firestore.rules` into Firebase console -> Firestore -> Rules -> Publish, or every write to
 `raids/` is denied and the team bar silently stops moving.
+
+## Review (student-facing)
+
+`missed[id]` and `seen[id]` were already recorded on every answer, and `buildQuest` already
+weights a missed question 3x — but none of it was visible to the student. The **REVIEW** button
+on the home screen opens that data:
+
+- **Flashcards** from the questions they have missed, worst first. Front is the term plus the
+  prompt they actually got wrong; back is `why` and the `src` citation, so the card names the
+  page to reread. 552 of 566 questions carry `term`/`why`/`src`; the 14 that do not are boss
+  spells, which fall back to the spell name (`cardFront`).
+- **Weak spots** — accuracy per session, worst first.
+- **Drill these** — `start({practice:true,review:true})` builds a fight from `troubled()`,
+  topping up from the bank when they have fewer misses than the fight needs.
+
+**"Got it" halves the miss count rather than clearing it** (`gotIt`). Knowing a term and
+answering it under a timer are not the same thing, so the drill keeps quietly checking.
+
+The front of a card shows the prompt as well as the term because several questions share a
+term — two cards reading only "Positive vs Normative" are indistinguishable.

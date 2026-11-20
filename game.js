@@ -399,6 +399,7 @@ function checkEscape(){
 }
 
 function home(){
+  blitzStop();B=null;
   if(!load("hero",null)){pickHero();return}
   G=null;clearInterval(timerId);Scene.dead=false;Scene.state="idle";
   const justEscaped=checkEscape();
@@ -417,6 +418,7 @@ function home(){
   ${a2hsHTML()}
   <button class="ghost" id="weeklyBtn"><span class="lbl">WEEKLY BOSS</span><span class="sub">${esc(weeklyBtnSub())}</span></button>
   <button class="ghost" id="reviewBtn"><span class="lbl">REVIEW</span><span class="sub">${esc(reviewSub())}</span></button>
+  <button class="ghost" id="blitzBtn"><span class="lbl">TERM BLITZ</span><span class="sub">${BLITZ.secs} seconds, no explanations${load("blitzBest",0)?" \u2022 best "+load("blitzBest",0):""}</span></button>
   <div class="two"><button class="ghost center" id="mapBtn"><span class="lbl">CAMPUS MAP</span></button><button class="ghost center" id="rivalBtn"><span class="lbl">RIVAL</span></button></div>
   <button class="ghost center" id="storyBtn"><span class="lbl">\ud83d\udcd6 THE STORY${load("storySeen",false)?"":" \u2022 NEW"}</span></button>
   <div class="two"><button class="ghost center" id="startPractice"><span class="lbl">PRACTICE</span></button><button class="ghost center" id="bagBtn"><span class="lbl">BAG (${(S.items.skip||0)+(S.items.second||0)})</span></button></div>
@@ -429,12 +431,162 @@ function home(){
   $("#weeklyBtn").onclick=()=>{SFX.click();weekly()};$("#storyBtn").onclick=()=>{SFX.click();story()};$("#mapBtn").onclick=()=>{SFX.click();campus()};$("#rivalBtn").onclick=()=>{SFX.click();rival()};$("#bagBtn").onclick=()=>{SFX.click();bag()};
   $("#coachBtn").onclick=()=>{SFX.click();coachGate()};
   $("#reviewBtn").onclick=()=>{SFX.click();RV={i:0,open:false};review()};
+  $("#blitzBtn").onclick=()=>{SFX.click();blitz()};
   a2hsWire();
   $("#pname").oninput=e=>{S.name=e.target.value.trim();save("name",S.name);cloudPush()};
   $("#team").oninput=e=>{S.team=normTeam(e.target.value);e.target.value=S.team;save("team",S.team);cloudPush();if(dbReady){watchRoster();watchRaid()}};
 }
 
 let attractT=null;function attract(){clearInterval(attractT);attractT=setInterval(()=>{if(!G&&Scene.cv&&Scene.cv.isConnected){sceneSet("cast");setTimeout(()=>{if(!G)sceneSet("idle")},1200)}else clearInterval(attractT)},5000)}
+
+// ---------- TERM BLITZ ----------
+// Every other mode stops after each question to explain itself. This one does not:
+// ninety seconds, as many as you can, no HP and no boss. A wrong answer costs three
+// seconds rather than a life, so the clock is the only thing you are fighting.
+// Numeric questions are left out on purpose - the keyboard covers half a phone and
+// typing a figure is not a thing you can do at speed.
+const BLITZ={secs:90,penalty:3,base:10,cap:1.8};
+let B=null,blitzTimer=null;
+
+// A blitz question has to be readable and tappable without scrolling on a 320px
+// phone, or the clock punishes whoever brought the cheapest handset. Measured, not
+// guessed: with the compact layout, 320 characters of prompt plus options is the
+// largest budget where nothing lands below the fold. It keeps 92% of the bank and
+// every session stays well represented.
+const BLITZ_CHARS=320;
+// Many questions carry the session name in place of a real concept name, so a naive
+// label reads "Jobs & Finance Jobs & Finance". Show the session once when that happens.
+function blitzLabel(q){const t=(q.term||"").trim();const sn=SESSIONS[q.s]||"";
+  const n=x=>String(x).toLowerCase().replace(/[^a-z0-9]/g,"");
+  return !t||n(t)===n(sn)?sn:t}
+function blitzFits(q){return q.q.length+q.opts.join("").length<=BLITZ_CHARS}
+function blitzPool(){return BANK.filter(q=>q.s<=TAUGHT&&q.type!=="num"&&q.opts&&q.opts.length>1&&blitzFits(q))}
+// Mastery weighting, same shape the quest builder uses: a term you keep missing comes
+// round more often. Drawn without replacement so a run never repeats itself.
+function buildBlitz(){
+  const pool=blitzPool().slice(),out=[];
+  while(pool.length){
+    const w=[];pool.forEach((q,k)=>{const m=1+(S.missed[q.id]||0)*2;for(let x=0;x<m;x++)w.push(k)});
+    const k=w[Math.floor(Math.random()*w.length)];
+    out.push(pool.splice(k,1)[0]);
+    if(out.length>=60)break;// ninety seconds will never reach sixty questions
+  }
+  return out;
+}
+function blitzMult(){return Math.min(1+0.1*Math.max(0,B.streak-1),BLITZ.cap)}
+function blitzStop(){if(blitzTimer){clearInterval(blitzTimer);blitzTimer=null}}
+
+function blitz(){
+  blitzStop();B=null;wantTrack("overworld");
+  const best=load("blitzBest",0);
+  app.innerHTML=`
+  <header class="title"><p class="eyebrow">No explanations. No mercy.</p><h1>Term<br>Blitz</h1><div class="tartan" aria-hidden="true"></div></header>
+  <div class="card">
+    <p class="eyebrow">${BLITZ.secs} seconds</p>
+    <p class="miss">Answer as many as you can. A miss costs ${BLITZ.penalty} seconds, not a heart.
+    Build a streak and every hit lands harder. Everything you miss goes straight to your Review.</p>
+  </div>
+  ${best?`<div class="stats"><div><div class="n">${best}</div><div class="l">Your best</div></div><div><div class="n">${load("blitzBestStreak",0)}</div><div class="l">Best streak</div></div></div>`:""}
+  <button class="big center" id="bstart"><span class="lbl">START THE CLOCK</span></button>
+  <button class="ghost center" id="home"><span class="lbl">BACK TO CAMPUS</span></button>`;
+  window.scrollTo({top:0});
+  $("#bstart").onclick=()=>{SFX.click();blitzRun()};$("#home").onclick=home;
+}
+
+function blitzRun(){
+  B={queue:buildBlitz(),i:0,score:0,streak:0,best:0,left:BLITZ.secs,dmg:0,seen:0,missed:[],t0:Date.now(),locked:false};
+  blitzStop();
+  blitzTimer=setInterval(()=>{
+    if(!B)return blitzStop();
+    B.left--;
+    const c=$("#bclock");if(c){c.textContent=B.left;c.classList.toggle("low",B.left<=10)}
+    if(B.left<=5&&B.left>0)SFX.tick();
+    if(B.left<=0)blitzEnd();
+  },1000);
+  blitzQ();
+}
+
+function blitzQ(){
+  if(!B)return;
+  if(B.i>=B.queue.length){blitzEnd();return}
+  const q=B.queue[B.i];B.locked=false;B.qStart=Date.now();
+  app.innerHTML=`
+  <div class="hud">
+    <div class="row"><span class="eyebrow">TERM BLITZ</span><span class="eyebrow">${esc(SESSIONS[q.s]||"")}</span></div>
+    <div class="row"><span class="combo" id="bstreak">${B.streak>1?"x"+B.streak+" STREAK":""}</span><span class="pen" id="bpen"></span><span class="timer ${B.left<=10?"low":""}" id="bclock">${B.left}</span></div>
+  </div>
+  <div class="card blitzcard"><p class="q">${esc(q.q)}</p><div id="banswer"></div></div>
+  <div class="stats"><div><div class="n" id="bscore">${B.score}</div><div class="l">Cleared</div></div><div><div class="n">${B.dmg}</div><div class="l">Damage</div></div><div><div class="n">${B.best}</div><div class="l">Best streak</div></div></div>
+  <button class="ghost center" id="bquit">Stop the clock</button>`;
+  const a=$("#banswer");
+  if(q.type==="two"){a.className="blitz two";a.innerHTML=q.opts.map((o,k)=>`<button class="opt" data-k="${k}">${k===0?"◀ ":""}${esc(o)}${k===1?" ▶":""}</button>`).join("")}
+  else{a.className="blitz opts";a.innerHTML=q.opts.map((o,k)=>`<button class="opt" data-k="${k}"><span class="key">${"ABCD"[k]}</span><span>${esc(o)}</span></button>`).join("")}
+  a.querySelectorAll("button").forEach(b=>b.onclick=()=>blitzAnswer(+b.dataset.k));
+  $("#bquit").onclick=()=>{blitzEnd()};
+}
+
+function blitzAnswer(v){
+  if(!B||B.locked)return;B.locked=true;
+  const q=B.queue[B.i],ok=v===q.a;
+  B.seen++;S.seen=S.seen||{};S.seen[q.id]=(S.seen[q.id]||0)+1;
+  const a=$("#banswer");
+  a.querySelectorAll("button").forEach(b=>{b.disabled=true;
+    if(+b.dataset.k===q.a)b.classList.add("right");
+    else if(+b.dataset.k===v)b.classList.add("wrong","shakeX");
+    else b.classList.add("dim")});
+  let wait;
+  if(ok){
+    B.streak++;B.best=Math.max(B.best,B.streak);B.score++;
+    const d=Math.round(BLITZ.base*blitzMult());B.dmg+=d;
+    SFX.hit();
+    const sc=$("#bscore");if(sc)sc.textContent=B.score;
+    const st=$("#bstreak");if(st){st.textContent=B.streak>1?"x"+B.streak+" STREAK":"";st.classList.toggle("hot",B.streak>=3)}
+    wait=260;// just long enough to register the green, then straight on
+  }else{
+    B.streak=0;B.missed.push(q);
+    S.missed[q.id]=(S.missed[q.id]||0)+1;
+    B.left=Math.max(0,B.left-BLITZ.penalty);
+    const c=$("#bclock");if(c){c.textContent=B.left;c.classList.add("low")}
+    const pen=$("#bpen");if(pen){pen.textContent="−"+BLITZ.penalty+"s";pen.classList.add("on")}
+    SFX.miss();
+    document.body.classList.add("flash");setTimeout(()=>document.body.classList.remove("flash"),300);
+    wait=850;// long enough to read the right answer, short enough to still hurt
+  }
+  save("seen",S.seen);save("missed",S.missed);
+  setTimeout(()=>{
+    if(!B)return;
+    if(B.left<=0){blitzEnd();return}
+    B.i++;blitzQ();
+  },wait);
+}
+
+function blitzEnd(){
+  blitzStop();
+  if(!B)return;
+  const b=B;B=null;
+  const secs=Math.max(1,Math.round((Date.now()-b.t0)/1000));
+  const acc=b.seen?Math.round(b.score/b.seen*100):0;
+  const pb=b.score>load("blitzBest",0);
+  if(pb)save("blitzBest",b.score);
+  if(b.best>load("blitzBestStreak",0))save("blitzBestStreak",b.best);
+  S.totalDmg+=b.dmg;saveAll();postDamage(b.dmg);
+  const card=`${S.team?S.team+" • ":""}Econ Monster Term Blitz — ${b.score} cleared in ${BLITZ.secs}s • ${acc}% • x${b.best} streak — ${b.dmg} dmg`;
+  app.innerHTML=`
+  <header class="title"><p class="eyebrow">Term Blitz</p><h1 class="${b.score?"victory":"lose"}">${b.score}<br>CLEARED</h1></header>
+  ${pb&&b.score?`<div class="loot"><span class="eyebrow">NEW PERSONAL BEST</span><p>Your best run yet.</p></div>`:""}
+  <div class="stats"><div><div class="n">${acc}%</div><div class="l">Accuracy</div></div><div><div class="n">x${b.best}</div><div class="l">Best streak</div></div><div><div class="n">${b.dmg}</div><div class="l">Damage</div></div></div>
+  ${b.missed.length?`<div class="card"><p class="eyebrow">Straight to your Review</p>${b.missed.slice(0,8).map(q=>`<p class="miss"><b>${esc(blitzLabel(q))}</b>${blitzLabel(q)===SESSIONS[q.s]?"":` <span class="muted small">${esc(SESSIONS[q.s]||"")}</span>`}<div class="small">${esc(q.q)}</div></p>`).join("")}${b.missed.length>8?`<p class="muted small">… and ${b.missed.length-8} more.</p>`:""}</div>`:`<div class="taunt">“Not one slip. I am going to need a bigger book.”</div>`}
+  <div class="card"><p class="eyebrow">Share card</p><div class="share" id="card">${esc(card)}</div><button class="big center" id="copy"><span class="lbl">COPY SHARE CARD</span></button></div>
+  <button class="big center" id="again"><span class="lbl">BLITZ AGAIN</span></button>
+  <button class="ghost center" id="reviewFromBlitz"><span class="lbl">REVIEW WHAT I MISSED</span></button>
+  <button class="ghost center" id="home"><span class="lbl">BACK TO CAMPUS</span></button>`;
+  window.scrollTo({top:0});
+  if(!S.muted){Music.stop();setTimeout(()=>Music.play(b.score?"victory":"defeat",{then:()=>Music.play("overworld")}),200)}
+  $("#copy").onclick=()=>{const txt=$("#card").textContent;const fb=()=>toast("Select & copy");try{navigator.clipboard.writeText(txt).then(()=>toast("Copied!")).catch(fb)}catch(e){fb()}};
+  $("#again").onclick=()=>{SFX.click();blitzRun()};
+  $("#reviewFromBlitz").onclick=()=>{SFX.click();RV={i:0,open:false};review()};
+  $("#home").onclick=home;
+}
 
 // ---------- THE WEEKLY RAID ----------
 // Six chapter forms, then the corridor chain. Each form carries its own HP bar:

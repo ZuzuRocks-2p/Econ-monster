@@ -42,6 +42,17 @@ p{margin:0}
 .scan{position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(0,0,0,.08) 0 2px,transparent 2px 4px);mix-blend-mode:multiply}
 .scene::after{content:"";position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 40px #000c}
 #fx{position:absolute;inset:0;pointer-events:none}
+/* Term Blitz runs against a clock, so nothing may sit below the fold on a
+   small phone - every option has to be tappable the moment it is drawn. */
+.blitzcard{padding:10px;gap:8px}
+.blitzcard .q{font-size:1rem;line-height:1.3}
+.blitz.opts{gap:7px}
+.blitz .opt{padding:9px 11px;gap:9px;font-size:.95rem;line-height:1.25}
+.blitz .opt .key{font-size:.78rem;min-width:1.2em}
+.blitz.two .opt{padding:11px 10px}
+.pen{font-family:var(--pixel);font-size:.7rem;color:#ff5c5c;opacity:0;transition:opacity .12s;margin-right:6px}
+.pen.on{opacity:1;animation:penfade 850ms forwards}
+@keyframes penfade{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-8px)}}
 .dmgpop{position:absolute;left:50%;top:30%;transform:translateX(-50%);font-family:var(--pixel);font-size:1.5rem;color:var(--accent);text-shadow:3px 3px 0 #000;animation:pop .9s forwards}
 .dmgpop.heal{color:var(--tome)}
 @keyframes pop{0%{opacity:0;transform:translate(-50%,10px) scale(.5)}20%{opacity:1;transform:translate(-50%,0) scale(1.25)}100%{opacity:0;transform:translate(-50%,-40px) scale(1)}}
@@ -270,6 +281,6 @@ button.opt::before,button.opt::after{content:none!important;display:none!importa
 <script src="bosses.js?v=1794717117"></script>
 <script src="music.js?v=1794717117"></script>
 <script src="questions.js?v=1795156109"></script>
-<script src="game.js?v=1795156109"></script>
+<script src="game.js?v=1795157073"></script>
 </body>
 </html>

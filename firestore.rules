@@ -21,6 +21,31 @@ service cloud.firestore {
         && request.resource.data.pinHash is string && request.resource.data.pinHash.size() == 64;
       allow update, delete: if false;
     }
+    // The weekly raid monster: one document per team per week, created by whoever
+    // lands the first hit. Damage is applied with increment() and may only ever go
+    // UP, so a student cannot heal the Tome by rewriting the total, and a single
+    // write is capped well above a real fight but below a full bar.
+    match /raids/{id} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && id.matches('[A-Z0-9]{1,16}_[0-9]{8}')
+        && request.resource.data.keys().hasOnly(['team','week','max','total','updated'])
+        && request.resource.data.team is string && request.resource.data.team.size() <= 16
+        && request.resource.data.week is string
+        && request.resource.data.max is number
+        && request.resource.data.total is number
+        && request.resource.data.total >= 0 && request.resource.data.total <= 3000
+        && request.resource.data.updated is number;
+      allow update: if request.auth != null
+        && request.resource.data.keys().hasOnly(['team','week','max','total','updated'])
+        && request.resource.data.team == resource.data.team
+        && request.resource.data.week == resource.data.week
+        && request.resource.data.total is number
+        && request.resource.data.total >= resource.data.total
+        && request.resource.data.total <= resource.data.total + 3000
+        && request.resource.data.updated is number;
+      allow delete: if false;
+    }
     // Old layout, no longer written.
     match /hits/{uid} { allow read, write: if false; }
   }

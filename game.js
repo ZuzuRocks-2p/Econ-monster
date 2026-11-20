@@ -30,6 +30,7 @@ const LOOT=[
 const HATS={crown:"👑",wizard:"🧠",cap:"🧢",halo:"😇"};
 function icon(n,cls=""){return `<img class="icon ${cls}" src="art/icons/${n}.png" alt="${n}">`}
 const ITEMS={skip:{n:"Skip",d:"Skip one question, no damage either way"},second:{n:"Second Chance",d:"Restore a heart once per fight"}};
+const ITEM_CAP=3; // most of each item a bag may hold; loot stops dropping one you are full on
 const TAUGHT=12;let TOME_MAX=200;const WEEK_MAX=5000; // TAUGHT: bump after each lecture; sessions above it are locked everywhere
 
 // ---------- STATE ----------
@@ -751,11 +752,18 @@ function answer(v){
   $("#next").onclick=advance;
   setTimeout(()=>{const w=$("#why");if(w)w.scrollIntoView({behavior:"smooth",block:"nearest"})},200);
 }
-function rollLoot(){if(Math.random()<.35)return null;const l=LOOT[Math.floor(Math.random()*LOOT.length)];
-  if(l.k==="title"){if(S.titles.includes(l.v))return {k:"item",v:"skip"};S.titles.push(l.v);S.title=l.v}
-  else if(l.k==="hat"){if(S.hats.includes(l.v))return {k:"item",v:"second"};S.hats.push(l.v);S.hat=l.v}
-  if(l.k==="item")S.items[l.v]=(S.items[l.v]||0)+1;
-  saveAll();return l}
+// A drop the screen announces must be a drop the bag receives. Rolling a title or hat you
+// already own gives a consolation item instead -- but that consolation has to fall THROUGH to
+// the grant below, not return early, or the result screen says "Skip" and nothing arrives.
+// There are only 6 titles and 4 hats, so every player owns the lot within a few wins and from
+// then on 10 of the 14 loot entries take the consolation path. ITEM_CAP is what keeps that
+// from burying them in Skips: at the cap the roll yields nothing and announces nothing.
+function rollLoot(){if(Math.random()<.35)return null;
+  let g=LOOT[Math.floor(Math.random()*LOOT.length)];
+  if(g.k==="title"){if(S.titles.includes(g.v))g={k:"item",v:"skip"};else{S.titles.push(g.v);S.title=g.v}}
+  else if(g.k==="hat"){if(S.hats.includes(g.v))g={k:"item",v:"second"};else{S.hats.push(g.v);S.hat=g.v}}
+  if(g.k==="item"){if((S.items[g.v]||0)>=ITEM_CAP)return null;S.items[g.v]=(S.items[g.v]||0)+1}
+  saveAll();return g}
 function rivalCode(dmg,secs){return "EM-"+G.seed.toString(36)+"-"+dmg.toString(36)+"-"+secs.toString(36)+"-"+(S.name||"anon").replace(/[^a-z0-9]/gi,"").slice(0,12)}
 function result(){
   clearInterval(timerId);
@@ -1025,7 +1033,7 @@ function rival(){wantTrack("overworld");
 // ---------- BAG ----------
 function bag(){wantTrack("overworld");
   app.innerHTML=`<header class="title"><p class="eyebrow">Loot drops after a win</p><h1>Your Bag</h1></header>
-  <div class="card"><p class="eyebrow">Items</p><div class="itemrow">${icon("skip")}<div><b>${ITEMS.skip.n}</b> × ${S.items.skip||0}<br><span class="small muted">${ITEMS.skip.d}</span></div></div><div class="itemrow">${icon("second")}<div><b>${ITEMS.second.n}</b> × ${S.items.second||0}<br><span class="small muted">${ITEMS.second.d}</span></div></div></div>
+  <div class="card"><p class="eyebrow">Items</p><div class="itemrow">${icon("skip")}<div><b>${ITEMS.skip.n}</b> × ${S.items.skip||0}${(S.items.skip||0)>=ITEM_CAP?' <span class="small muted">(bag full)</span>':""}<br><span class="small muted">${ITEMS.skip.d}</span></div></div><div class="itemrow">${icon("second")}<div><b>${ITEMS.second.n}</b> × ${S.items.second||0}${(S.items.second||0)>=ITEM_CAP?' <span class="small muted">(bag full)</span>':""}<br><span class="small muted">${ITEMS.second.d}</span></div></div></div>
   <div class="card"><p class="eyebrow">Hero</p><div class="chips">${Object.entries(HEROES).map(([k,h])=>`<button class="chip ${heroKey()===k?"on":""}" data-hero="${k}"><img class="icon sm" src="art/sprites/${k}_idle.png" alt=""> ${esc(h.name)}</button>`).join("")}</div></div>
   <div class="card"><p class="eyebrow">Hats</p>${S.hats.length?`<div class="chips">${S.hats.map(h=>`<button class="chip ${S.hat===h?"on":""}" data-h="${h}">${icon(h,"sm")} ${h}</button>`).join("")}<button class="chip ${S.hat?"":"on"}" data-h="">none</button></div>`:"<p class='muted'>None yet.</p>"}</div>
   <div class="card"><p class="eyebrow">Titles</p>${S.titles.length?`<div class="chips">${S.titles.map(t=>`<button class="chip ${S.title===t?"on":""}" data-t="${esc(t)}">${esc(t)}</button>`).join("")}</div>`:"<p class='muted'>None yet.</p>"}</div>

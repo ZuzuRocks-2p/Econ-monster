@@ -276,18 +276,20 @@ function loop(){
 
 // ---------- CLOUD SAVE + TEAM (Firebase, no personal data) ----------
 // Identity = a random save code kept on the phone. No email, no login, no real names required.
-let DB=null,UID=null,dbReady=false,roster=[],unsubRoster=null,cloudTimer=null,raidDoc=null,unsubRaid=null;
+let DB=null,UID=null,dbReady=false,teamFixed=false,roster=[],unsubRoster=null,cloudTimer=null,raidDoc=null,unsubRaid=null;
 const CLOUD_KEYS=["streak","lastDay","best","totalDmg","team","name","wins","titles","hats","hat","title","items","escaped","recapture"];
 function newCode(){const A="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";let s="";const r=crypto.getRandomValues(new Uint8Array(12));for(let i=0;i<12;i++)s+=A[r[i]%A.length];return "SCOT-"+s.slice(0,4)+"-"+s.slice(4,8)+"-"+s.slice(8)}
 function saveCode(){let c=load("saveCode","");if(!c){c=newCode();save("saveCode",c)}return c}
 function cleanCode(s){return String(s||"").toUpperCase().replace(/[^A-Z0-9]/g,"").replace(/^SCOT/,"").replace(/(.{4})(.{4})(.{4})/,"SCOT-$1-$2-$3")}
-function cloudDoc(){return {v:1,name:S.name||"",team:S.team||"",hero:heroKey(),hat:S.hat||"",title:S.title||"",streak:S.streak,lastDay:S.lastDay,best:S.best||{},totalDmg:S.totalDmg,wins:S.wins||{},titles:S.titles||[],hats:S.hats||[],items:S.items||{},escaped:S.escaped||null,recapture:S.recapture||0,weeks:S.weekLocal||{},
+function cloudDoc(){return {v:1,name:S.name||"",team:normTeam(S.team),hero:heroKey(),hat:S.hat||"",title:S.title||"",streak:S.streak,lastDay:S.lastDay,best:S.best||{},totalDmg:S.totalDmg,wins:S.wins||{},titles:S.titles||[],hats:S.hats||[],items:S.items||{},escaped:S.escaped||null,recapture:S.recapture||0,weeks:S.weekLocal||{},
   missed:Object.fromEntries(Object.entries(S.missed||{}).sort((a,b)=>b[1]-a[1]).slice(0,40)),seen:Object.fromEntries(Object.entries(S.seen||{}).sort((a,b)=>b[1]-a[1]).slice(0,80)),updated:Date.now()}}
-function applyCloud(d){if(!d)return;CLOUD_KEYS.forEach(k=>{if(d[k]!==undefined&&d[k]!==null)S[k]=d[k]});S.weekLocal=d.weeks||{};S.missed=d.missed||{};S.seen=d.seen||{};if(d.hero)save("hero",d.hero);saveAll(true);save("weekLocal",S.weekLocal);save("synced",d.updated||Date.now())}
+function applyCloud(d){if(!d)return;CLOUD_KEYS.forEach(k=>{if(d[k]!==undefined&&d[k]!==null)S[k]=d[k]});S.weekLocal=d.weeks||{};S.missed=d.missed||{};S.seen=d.seen||{};if(d.hero)save("hero",d.hero);
+  teamFixed=S.team!==normTeam(S.team);if(teamFixed)S.team=normTeam(S.team);
+  saveAll(true);save("weekLocal",S.weekLocal);save("synced",d.updated||Date.now())}
 function cloudPush(){if(!dbReady)return;clearTimeout(cloudTimer);cloudTimer=setTimeout(async()=>{try{const d=cloudDoc();await DB.doc("players/"+saveCode()).set(d);save("synced",d.updated)}catch(e){console.warn("cloud push",e)}},800)}
 async function cloudPull(){if(!dbReady)return false;try{const snap=await DB.doc("players/"+saveCode()).get();if(!snap.exists)return false;const d=snap.data();if((d.updated||0)>load("synced",0)){applyCloud(d);return true}}catch(e){}return false}
 async function restoreCode(code){const c=cleanCode(code);if(!/^SCOT-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(c))return "That code is not the right shape.";if(!dbReady)return "Not connected. Check your signal and try again.";
-  try{const snap=await DB.doc("players/"+c).get();if(!snap.exists)return "No save found for that code.";save("saveCode",c);save("synced",0);applyCloud(snap.data());watchRoster();watchRaid();return null}catch(e){return "Could not reach the save."}}
+  try{const snap=await DB.doc("players/"+c).get();if(!snap.exists)return "No save found for that code.";save("saveCode",c);save("synced",0);applyCloud(snap.data());watchRoster();watchRaid();if(teamFixed)cloudPush();return null}catch(e){return "Could not reach the save."}}
 // The team code is typed by hand, so "HHS-ECON", "hhs econ" and "HHSECON" have to
 // land on the same raid. Everything that keys on a team goes through this.
 function normTeam(s){return String(s||"").toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,16)}
@@ -325,8 +327,8 @@ function watchRoster(){if(unsubRoster){unsubRoster();unsubRoster=null}
   const cred=await firebase.auth().signInAnonymously();UID=cred.user.uid;DB=firebase.firestore();dbReady=true;
   const pulled=await cloudPull();
   // One-time fold: existing saves typed "HHS-ECON" or "hhs econ" join the same raid.
-  if(S.team!==normTeam(S.team)){S.team=normTeam(S.team);save("team",S.team)}
-  if(!pulled)cloudPush();
+  if(S.team!==normTeam(S.team)){S.team=normTeam(S.team);save("team",S.team);teamFixed=true}
+  if(!pulled||teamFixed)cloudPush();
   watchRoster();watchRaid();if(!G)home()}catch(e){console.warn("firebase off",e)}})();
 async function postDamage(dmg){
   const wk=weekId();S.weekLocal[wk]=(S.weekLocal[wk]||0)+dmg;save("weekLocal",S.weekLocal);cloudPush();
@@ -342,10 +344,10 @@ function weeklyTotals(){const wk=weekId();const me=saveCode();if(dbReady){const 
 
 // ---------- COACH PIN ----------
 async function sha(s){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
-async function teamPinHash(){if(!dbReady||!S.team)return load("coachPinLocal",null);try{const s=await DB.doc("teams/"+S.team).get();return s.exists?(s.data().pinHash||null):null}catch(e){return null}}
-async function setTeamPin(pin){const h=await sha(S.team+"|"+pin);if(!dbReady||!S.team){save("coachPinLocal",h);return true}try{await DB.doc("teams/"+S.team).set({pinHash:h,created:Date.now()});return true}catch(e){return false}}
+async function teamPinHash(){if(!dbReady||!normTeam(S.team))return load("coachPinLocal",null);try{const s=await DB.doc("teams/"+normTeam(S.team)).get();return s.exists?(s.data().pinHash||null):null}catch(e){return null}}
+async function setTeamPin(pin){const t=normTeam(S.team);const h=await sha(t+"|"+pin);if(!dbReady||!t){save("coachPinLocal",h);return true}try{await DB.doc("teams/"+t).set({pinHash:h,created:Date.now()});return true}catch(e){return false}}
 function coachGate(){wantTrack("overworld");
-  if(load("coachOK","")===(S.team||"local")){coach();return}
+  if(load("coachOK","")===(normTeam(S.team)||"local")){coach();return}
   app.innerHTML=`<header class="title"><p class="eyebrow">Coach mode</p><h1>Coach PIN</h1><div class="tartan" aria-hidden="true"></div></header>
   <div class="card"><p class="small">${S.team?`Team <b>${esc(S.team)}</b>. `:"No team code set; this PIN only works on this phone. "}Students do not have this PIN.</p>
   <div class="field"><label class="eyebrow" for="pin">PIN</label><input type="password" id="pin" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="••••"></div>
@@ -355,8 +357,8 @@ function coachGate(){wantTrack("overworld");
   $("#pinGo").onclick=async()=>{const pin=$("#pin").value.trim();const msg=$("#pinMsg");if(pin.length<4){msg.textContent="At least 4 characters.";return}
     const cur=await teamPinHash();
     if(cur===null){if(!confirmSet){confirmSet=true;msg.textContent="No coach PIN exists yet for this team. Tap UNLOCK again to make this the coach PIN. Remember it: there is no reset.";return}
-      if(!(await setTeamPin(pin))){msg.textContent="Could not save the PIN. Check your signal.";return}save("coachOK",S.team||"local");SFX.loot();coach();return}
-    const h=await sha(S.team+"|"+pin);if(h===cur){save("coachOK",S.team||"local");SFX.loot();coach()}else{msg.textContent="Wrong PIN.";SFX.miss()}};
+      if(!(await setTeamPin(pin))){msg.textContent="Could not save the PIN. Check your signal.";return}save("coachOK",normTeam(S.team)||"local");SFX.loot();coach();return}
+    const h=await sha((normTeam(S.team)||"")+"|"+pin);if(h===cur){save("coachOK",normTeam(S.team)||"local");SFX.loot();coach()}else{msg.textContent="Wrong PIN.";SFX.miss()}};
 }
 // ---------- SEASON ARCHIVE (from each player's weekly history) ----------
 function weekLabel(wk){return wk.slice(4,6)+"/"+wk.slice(6)}
@@ -468,7 +470,7 @@ function fight(){
   else if(q.type==="two"){ans.className="two";ans.innerHTML=q.opts.map((o,k)=>`<button class="opt" data-k="${k}">${k===0?"◀ ":""}${esc(o)}${k===1?" ▶":""}</button>`).join("");ans.querySelectorAll("button").forEach(b=>b.onclick=()=>answer(+b.dataset.k));
     let sx=null;ans.addEventListener("touchstart",e=>{sx=e.touches[0].clientX},{passive:true});ans.addEventListener("touchend",e=>{if(sx==null||G.done)return;const dx=e.changedTouches[0].clientX-sx;if(Math.abs(dx)>60)answer(dx<0?0:1);sx=null})}
   else{ans.innerHTML=`<input type="number" inputmode="decimal" step="any" id="num" placeholder="Type a number"><button class="big center" id="go"><span class="lbl">STRIKE</span></button>`;
-    const go=()=>{const v=parseFloat($("#num").value);if(isNaN(v))return;answer(v)};$("#go").onclick=go;$("#num").onkeydown=e=>{if(e.key==="Enter")go()};setTimeout(()=>$("#num").focus(),50)}
+    const go=()=>{const v=parseFloat($("#num").value);if(isNaN(v))return;answer(v)};$("#go").onclick=go;$("#num").onkeydown=e=>{if(e.key==="Enter")go()};setTimeout(()=>{const n=$("#num");if(n)n.focus()},50)}
   let left=limit;const tEl=$("#timer");
   timerId=setInterval(()=>{left--;tEl.textContent=left;if(left<=5){tEl.classList.add("low");if(left<=3)SFX.tick()}if(left<=0){clearInterval(timerId);answer(null)}},1000);
 }
@@ -583,7 +585,7 @@ function coach(){
   const people=rows.map(r=>({...r,wkDmg:r.weeks[wk]||0,days:Math.floor((now-r.updated)/86400000)})).sort((a,b)=>b.wkDmg-a.wkDmg);
   const label=q=>{const t=q.term||q.spell||"";const pg=(q.src||"").match(/RG p\.([\d;, ]+)/);if(SESSIONS[q.s]===t)return "RG p."+(pg?pg[1].trim():"?");return t};
   const review=top.slice(0,6).map(x=>label(x.q)+(x.q.src?" ("+x.q.src.replace(/DemiDec /,"")+")":"")).join("\n");
-  app.innerHTML=`<header class="title"><p class="eyebrow">Coach mode • ${dbReady?(S.team?"team "+esc(S.team):"all players"):"this phone"+(load("coachImports",[]).length?" + "+load("coachImports",[]).length+" imported":"")}</p><h1>Where the Tome<br>is winning</h1><div class="tartan" aria-hidden="true"></div></header>
+  app.innerHTML=`<header class="title"><p class="eyebrow">Coach mode • ${dbReady&&normTeam(S.team)?"team "+esc(normTeam(S.team)):"this phone"+(load("coachImports",[]).length?" + "+load("coachImports",[]).length+" imported":"")}</p><h1>Where the Tome<br>is winning</h1><div class="tartan" aria-hidden="true"></div></header>
   <div class="card"><p class="eyebrow">Today’s review list</p>${top.length?`<ol class="review">${top.slice(0,6).map(x=>`<li><b>${esc(x.q.term||x.q.spell)}</b> <span class="muted small">${esc(SESSIONS[x.q.s])} • missed ${x.n}× • ${x.rate}% miss rate</span><div class="small">${esc(x.q.q)}</div></li>`).join("")}</ol><div class="two"><button class="big center" id="copyReview"><span class="lbl">COPY REVIEW</span></button><button class="ghost center" id="csvBtn"><span class="lbl">COPY CSV</span></button></div>`:`<p class='muted'>No misses logged yet.${dbReady?" They show up here as the team plays.":" Play a quest or import a student code below."}</p>`}</div>
   <div class="card"><p class="eyebrow">Accuracy by session</p>${sess.map(x=>`<div class="srow"><span class="sn">${x.s}. ${esc(x.name)}</span><div class="sbar"><i style="width:${x.acc==null?0:x.acc}%" class="${x.acc!=null&&x.acc<70?"low":""}"></i></div><span class="sv">${x.acc==null?"—":x.acc+"%"}<small> ${x.seen}</small></span></div>`).join("")}<p class="muted small">Bar = correct rate. Small number = attempts.</p></div>
   <div class="card"><p class="eyebrow">Roster • week of ${wk.slice(4,6)}/${wk.slice(6)}</p>${people.map(p=>`<div class="rrow"><span class="pos">${p.days>2?"💤":"⚔️"}</span><span class="rn">${HEROES[p.hero]?HEROES[p.hero].icon+" ":""}${esc(p.name)} <small class="muted">🔥${p.streak}${p.days>0?" • "+p.days+"d ago":""}</small></span><span class="rd">${p.wkDmg.toLocaleString()}</span></div>`).join("")}<p class="muted small">💤 = no fight in 3+ days.</p></div>
@@ -684,12 +686,14 @@ function gotIt(id){const left=Math.floor((S.missed[id]||0)/2);
 
 function buildReview(seed,n){const rnd=mulberry(seed);const t=troubled();
   const picked=[],used=new Set();
-  t.forEach(x=>{if(picked.length<n&&!used.has(x.q.id)){used.add(x.q.id);picked.push(x.q)}});
+  const isBoss=new Set(BOSSES.map(b=>b.id));
+  t.forEach(x=>{if(picked.length<n&&!used.has(x.q.id)&&!isBoss.has(x.q.id)){used.add(x.q.id);picked.push(x.q)}});
   // fewer misses than the fight needs: top up so a review is always a full fight
   const extra=BANK.filter(q=>q.s<=TAUGHT&&!used.has(q.id));
   while(picked.length<n&&extra.length){const q=extra.splice(Math.floor(rnd()*extra.length),1)[0];used.add(q.id);picked.push(q)}
   const ls=picked.length?picked[picked.length-1].s:1;
-  let bosses=BOSSES.filter(b=>b.s===ls&&b.s<=TAUGHT);if(!bosses.length)bosses=BOSSES.filter(b=>b.s<=TAUGHT);
+  const missedBosses=BOSSES.filter(b=>b.s<=TAUGHT&&(S.missed||{})[b.id]>0);
+  let bosses=missedBosses.length?missedBosses:BOSSES.filter(b=>b.s===ls&&b.s<=TAUGHT);if(!bosses.length)bosses=BOSSES.filter(b=>b.s<=TAUGHT);
   return {qs:picked,boss:bosses[Math.floor(rnd()*bosses.length)],seed}}
 
 function reviewSub(){const t=troubled().length;
